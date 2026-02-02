@@ -11,6 +11,30 @@ export async function GET(request: Request) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (!error) {
+      // Ensure user has a profile
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: existingProfile } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("id", user.id)
+          .single();
+
+        if (!existingProfile) {
+          // Create profile from user metadata or email
+          const fullName = user.user_metadata?.full_name
+            || user.user_metadata?.name
+            || user.email?.split("@")[0]?.split(".").map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(" ")
+            || null;
+
+          await supabase.from("profiles").insert({
+            id: user.id,
+            full_name: fullName,
+            role: "staff",
+          });
+        }
+      }
+
       const forwardedHost = request.headers.get("x-forwarded-host");
       const isLocalEnv = process.env.NODE_ENV === "development";
 

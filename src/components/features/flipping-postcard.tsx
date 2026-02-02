@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import Link from "next/link";
 import { createPortal } from "react-dom";
 import { Lightbulb, Sparkles, Target, Gem, Calendar, X, Pencil, RotateCcw } from "lucide-react";
@@ -54,7 +54,10 @@ const sectionConfig = [
 export function FlippingPostcard({ postcard, authorName, isOwner }: FlippingPostcardProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isFlipped, setIsFlipped] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [originRect, setOriginRect] = useState<DOMRect | null>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
 
   const filledSections = sectionConfig.filter((section) => postcard[section.key]);
 
@@ -66,15 +69,27 @@ export function FlippingPostcard({ postcard, authorName, isOwner }: FlippingPost
     .slice(0, 2) ?? "??";
 
   const handleOpen = useCallback(() => {
+    if (cardRef.current) {
+      setOriginRect(cardRef.current.getBoundingClientRect());
+    }
     setIsOpen(true);
+    setIsClosing(false);
     // Delay the flip to allow the modal to animate in
-    setTimeout(() => setIsFlipped(true), 50);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        setIsFlipped(true);
+      });
+    });
   }, []);
 
   const handleClose = useCallback(() => {
+    setIsClosing(true);
     setIsFlipped(false);
     // Wait for flip animation before closing modal
-    setTimeout(() => setIsOpen(false), 600);
+    setTimeout(() => {
+      setIsOpen(false);
+      setIsClosing(false);
+    }, 600);
   }, []);
 
   // Mount check for portal
@@ -85,13 +100,13 @@ export function FlippingPostcard({ postcard, authorName, isOwner }: FlippingPost
   // Close on escape key
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && isOpen) {
+      if (e.key === "Escape" && isOpen && !isClosing) {
         handleClose();
       }
     };
     window.addEventListener("keydown", handleEscape);
     return () => window.removeEventListener("keydown", handleEscape);
-  }, [isOpen, handleClose]);
+  }, [isOpen, isClosing, handleClose]);
 
   // Prevent body scroll when modal is open
   useEffect(() => {
@@ -105,26 +120,66 @@ export function FlippingPostcard({ postcard, authorName, isOwner }: FlippingPost
     };
   }, [isOpen]);
 
+  // Calculate the transform to animate from/to the original card position
+  const getModalTransform = () => {
+    if (!originRect || isFlipped) return {};
+
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+
+    // Modal dimensions (max-w-4xl = 896px, aspect based on content)
+    const modalWidth = Math.min(896, viewportWidth - 32);
+    const modalHeight = Math.min(500, viewportHeight - 64);
+
+    // Center of viewport
+    const viewportCenterX = viewportWidth / 2;
+    const viewportCenterY = viewportHeight / 2;
+
+    // Center of original card
+    const cardCenterX = originRect.left + originRect.width / 2;
+    const cardCenterY = originRect.top + originRect.height / 2;
+
+    // Scale factor
+    const scaleX = originRect.width / modalWidth;
+    const scaleY = originRect.height / modalHeight;
+    const scale = Math.max(scaleX, scaleY);
+
+    // Translation to card position
+    const translateX = cardCenterX - viewportCenterX;
+    const translateY = cardCenterY - viewportCenterY;
+
+    return {
+      transform: `translate(${translateX}px, ${translateY}px) scale(${scale})`,
+    };
+  };
+
   const modal = isOpen && mounted ? createPortal(
     <div className="fixed inset-0 z-50">
       {/* Backdrop */}
       <div
         className={cn(
-          "absolute inset-0 bg-black/70 backdrop-blur-sm transition-opacity duration-300",
+          "absolute inset-0 bg-black/70 backdrop-blur-sm transition-opacity duration-500",
           isFlipped ? "opacity-100" : "opacity-0"
         )}
         onClick={handleClose}
       />
 
       {/* Card Container */}
-      <div className="absolute inset-0 flex items-center justify-center p-4 md:p-8" style={{ perspective: "2000px" }}>
+      <div
+        className="absolute inset-0 flex items-center justify-center p-4 md:p-8 pointer-events-none"
+        style={{ perspective: "2000px" }}
+      >
         <div
           className={cn(
-            "relative w-full max-w-4xl transition-transform duration-700 ease-out",
-            "[transform-style:preserve-3d]"
+            "relative w-full max-w-4xl pointer-events-auto",
+            "[transform-style:preserve-3d]",
+            "transition-all duration-700 ease-out"
           )}
           style={{
-            transform: isFlipped ? "rotateY(180deg)" : "rotateY(0deg)",
+            transform: isFlipped
+              ? "rotateY(180deg)"
+              : `rotateY(0deg)`,
+            ...((!isFlipped && originRect) ? getModalTransform() : {}),
           }}
         >
           {/* FRONT SIDE - Card Preview (shown briefly before flip) */}
@@ -294,7 +349,7 @@ export function FlippingPostcard({ postcard, authorName, isOwner }: FlippingPost
   return (
     <>
       {/* Card in Grid */}
-      <div className="group cursor-pointer" onClick={handleOpen}>
+      <div ref={cardRef} className="group cursor-pointer" onClick={handleOpen}>
         <Card className="h-full hover:border-mcr-light-blue hover:bg-muted/30 transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5">
           <CardHeader className="pb-3">
             <div className="flex items-start justify-between gap-2">

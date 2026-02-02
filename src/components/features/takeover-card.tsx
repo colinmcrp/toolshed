@@ -54,8 +54,8 @@ export function TakeoverCard({ takeover, presenterName }: TakeoverCardProps) {
             </p>
           )}
           <div className="flex flex-wrap gap-1.5">
-            <Badge variant="secondary" className="text-xs font-normal">
-              <MessageSquare className="mr-1 h-3 w-3 text-mcr-teal" />
+            <Badge className="text-xs font-normal bg-mcr-teal/15 text-mcr-teal">
+              <MessageSquare className="mr-1 h-3 w-3" />
               {learningsCount} learning{learningsCount !== 1 ? "s" : ""} to share
             </Badge>
           </div>

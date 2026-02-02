@@ -9,7 +9,6 @@
   --mcr-dark-blue: #213350;
   --mcr-light-blue: #5BC6E9;
   --mcr-orange: #F09336;
-  --mcr-green: #B5E046;
   --mcr-ivory: #FDF9EA;
   --mcr-pink: #E83E8C;
   --mcr-yellow: #FFD43B;
@@ -33,8 +32,8 @@
   --accent-foreground: oklch(0.27 0.05 250);
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: oklch(1 0 0);
-  --success: oklch(0.82 0.18 115);       /* MCR Green */
-  --success-foreground: oklch(0.27 0.05 250);
+  --success: oklch(0.72 0.14 175);       /* MCR Teal */
+  --success-foreground: oklch(1 0 0);
   --border: oklch(0.92 0.01 250);
   --input: oklch(0.92 0.01 250);
   --ring: oklch(0.77 0.12 210);
@@ -42,7 +41,7 @@
   /* Chart colors using MCR palette */
   --chart-1: oklch(0.77 0.12 210);  /* Light Blue */
   --chart-2: oklch(0.72 0.15 55);   /* Orange */
-  --chart-3: oklch(0.82 0.18 115);  /* Green */
+  --chart-3: oklch(0.72 0.14 175);  /* Teal */
   --chart-4: oklch(0.65 0.2 350);   /* Pink */
   --chart-5: oklch(0.72 0.14 175);  /* Teal */
 
@@ -78,15 +77,15 @@
   --accent-foreground: oklch(0.27 0.05 250);
   --destructive: oklch(0.704 0.191 22.216);
   --destructive-foreground: oklch(1 0 0);
-  --success: oklch(0.82 0.18 115);
-  --success-foreground: oklch(0.27 0.05 250);
+  --success: oklch(0.72 0.14 175);
+  --success-foreground: oklch(1 0 0);
   --border: oklch(0.35 0.04 250);
   --input: oklch(0.35 0.04 250);
   --ring: oklch(0.77 0.12 210);
 
   --chart-1: oklch(0.77 0.12 210);
   --chart-2: oklch(0.72 0.15 55);
-  --chart-3: oklch(0.82 0.18 115);
+  --chart-3: oklch(0.72 0.14 175);
   --chart-4: oklch(0.65 0.2 350);
   --chart-5: oklch(0.72 0.14 175);
 
@@ -136,7 +135,6 @@
   --color-mcr-dark-blue: var(--mcr-dark-blue);
   --color-mcr-light-blue: var(--mcr-light-blue);
   --color-mcr-orange: var(--mcr-orange);
-  --color-mcr-green: var(--mcr-green);
   --color-mcr-ivory: var(--mcr-ivory);
   --color-mcr-pink: var(--mcr-pink);
   --color-mcr-yellow: var(--mcr-yellow);

@@ -71,8 +71,8 @@ const sections = [
     label: "Golden Nugget",
     description: "One key takeaway to share with colleagues",
     icon: Gem,
-    color: "text-mcr-green",
-    bgColor: "bg-mcr-green/10",
+    color: "text-mcr-pink",
+    bgColor: "bg-mcr-pink/10",
     placeholder: "The one thing everyone should know is...",
   },
 ];

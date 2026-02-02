@@ -24,6 +24,7 @@ const sectionConfig = [
     icon: Sparkles,
     color: "text-mcr-light-blue",
     bgColor: "bg-mcr-light-blue/20",
+    badgeClasses: "bg-mcr-light-blue/15 text-mcr-light-blue",
   },
   {
     key: "lightbulb_moment" as const,
@@ -32,6 +33,8 @@ const sectionConfig = [
     icon: Lightbulb,
     color: "text-mcr-yellow",
     bgColor: "bg-mcr-yellow/20",
+    badgeClasses: "bg-mcr-yellow/20 text-amber-700",
+    iconColor: "text-mcr-yellow",
   },
   {
     key: "programme_impact" as const,
@@ -40,14 +43,16 @@ const sectionConfig = [
     icon: Target,
     color: "text-mcr-orange",
     bgColor: "bg-mcr-orange/20",
+    badgeClasses: "bg-mcr-orange/15 text-mcr-orange",
   },
   {
     key: "golden_nugget" as const,
     label: "Golden Nugget",
     description: "Key takeaway",
     icon: Gem,
-    color: "text-mcr-green",
-    bgColor: "bg-mcr-green/20",
+    color: "text-mcr-pink",
+    bgColor: "bg-mcr-pink/20",
+    badgeClasses: "bg-mcr-pink/15 text-mcr-pink",
   },
 ];
 
@@ -379,8 +384,8 @@ export function FlippingPostcard({ postcard, authorName, isOwner }: FlippingPost
               {filledSections.map((section) => {
                 const Icon = section.icon;
                 return (
-                  <Badge key={section.key} variant="secondary" className="text-xs font-normal">
-                    <Icon className={`mr-1 h-3 w-3 ${section.color}`} />
+                  <Badge key={section.key} className={`text-xs font-normal ${section.badgeClasses}`}>
+                    <Icon className={`mr-1 h-3 w-3 ${section.iconColor ?? ""}`} />
                     {section.label}
                   </Badge>
                 );

@@ -14,25 +14,26 @@ const sectionConfig = [
     key: "elevator_pitch" as const,
     label: "Elevator Pitch",
     icon: Sparkles,
-    color: "text-mcr-light-blue",
+    badgeClasses: "bg-mcr-light-blue/15 text-mcr-light-blue",
   },
   {
     key: "lightbulb_moment" as const,
     label: "Lightbulb",
     icon: Lightbulb,
-    color: "text-mcr-yellow",
+    badgeClasses: "bg-mcr-yellow/20 text-amber-700",
+    iconColor: "text-mcr-yellow",
   },
   {
     key: "programme_impact" as const,
     label: "Impact",
     icon: Target,
-    color: "text-mcr-orange",
+    badgeClasses: "bg-mcr-orange/15 text-mcr-orange",
   },
   {
     key: "golden_nugget" as const,
     label: "Golden Nugget",
     icon: Gem,
-    color: "text-mcr-green",
+    badgeClasses: "bg-mcr-pink/15 text-mcr-pink",
   },
 ];
 
@@ -73,10 +74,9 @@ export function PostcardCard({ postcard, authorName }: PostcardCardProps) {
               return (
                 <Badge
                   key={section.key}
-                  variant="secondary"
-                  className="text-xs font-normal"
+                  className={`text-xs font-normal ${section.badgeClasses}`}
                 >
-                  <Icon className={`mr-1 h-3 w-3 ${section.color}`} />
+                  <Icon className={`mr-1 h-3 w-3 ${section.iconColor ?? ""}`} />
                   {section.label}
                 </Badge>
               );

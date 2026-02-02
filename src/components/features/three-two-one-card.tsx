@@ -37,17 +37,17 @@ export function ThreeTwoOneCard({ item, authorName }: ThreeTwoOneCardProps) {
             </p>
           )}
           <div className="flex flex-wrap gap-1.5">
-            <Badge variant="secondary" className="text-xs font-normal">
-              <BookOpen className="mr-1 h-3 w-3 text-mcr-light-blue" />
+            <Badge className="text-xs font-normal bg-mcr-light-blue/15 text-mcr-light-blue">
+              <BookOpen className="mr-1 h-3 w-3" />
               3 Learnings
             </Badge>
-            <Badge variant="secondary" className="text-xs font-normal">
-              <RefreshCw className="mr-1 h-3 w-3 text-mcr-orange" />
+            <Badge className="text-xs font-normal bg-mcr-orange/15 text-mcr-orange">
+              <RefreshCw className="mr-1 h-3 w-3" />
               2 Changes
             </Badge>
             {item.question && (
-              <Badge variant="secondary" className="text-xs font-normal">
-                <HelpCircle className="mr-1 h-3 w-3 text-mcr-green" />
+              <Badge className="text-xs font-normal bg-mcr-teal/15 text-mcr-teal">
+                <HelpCircle className="mr-1 h-3 w-3" />
                 1 Question
               </Badge>
             )}

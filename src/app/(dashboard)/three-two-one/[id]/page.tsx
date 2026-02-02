@@ -140,8 +140,8 @@ export default async function ThreeTwoOnePage({ params }: ThreeTwoOnePageProps) 
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-base">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-mcr-green/10">
-                    <HelpCircle className="h-4 w-4 text-mcr-green" />
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-mcr-teal/10">
+                    <HelpCircle className="h-4 w-4 text-mcr-teal" />
                   </div>
                   <div>
                     <div>1 Question I Still Have</div>

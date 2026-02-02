@@ -50,8 +50,8 @@ async function UserStats() {
       label: "Takeovers",
       count: takeoversResult.count ?? 0,
       icon: Presentation,
-      color: "text-mcr-green",
-      bgColor: "bg-mcr-green/10",
+      color: "text-mcr-teal",
+      bgColor: "bg-mcr-teal/10",
       href: "/takeovers",
     },
   ];

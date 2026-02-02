@@ -4,11 +4,11 @@ import { Plus, Mail } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PostcardCard } from "@/components/features/postcard-card";
-import { createClient } from "@/lib/supabase/server";
+import { FlippingPostcard } from "@/components/features/flipping-postcard";
+import { createClient, getUser } from "@/lib/supabase/server";
 
 async function PostcardsList() {
-  const supabase = await createClient();
+  const [supabase, user] = await Promise.all([createClient(), getUser()]);
 
   const { data: postcards, error } = await supabase
     .from("postcards")
@@ -50,10 +50,11 @@ async function PostcardsList() {
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {postcards.map((postcard) => (
-        <PostcardCard
+        <FlippingPostcard
           key={postcard.id}
           postcard={postcard}
           authorName={(postcard.profiles as { full_name: string } | null)?.full_name ?? undefined}
+          isOwner={user?.id === postcard.author_id}
         />
       ))}
     </div>
@@ -79,7 +80,7 @@ export default function PostcardsPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-muted-foreground">
-                4-section reflections from training and conferences
+                4-section reflections from training and conferences. Click a postcard to flip it over!
               </p>
             </div>
             <Button asChild>

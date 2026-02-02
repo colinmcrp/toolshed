@@ -42,8 +42,8 @@ const sections = [
     label: "Golden Nugget",
     description: "Key takeaway for colleagues",
     icon: Gem,
-    color: "text-mcr-green",
-    bgColor: "bg-mcr-green/10",
+    color: "text-mcr-pink",
+    bgColor: "bg-mcr-pink/10",
   },
 ];
 

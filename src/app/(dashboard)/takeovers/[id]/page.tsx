@@ -69,14 +69,14 @@ export default async function TakeoverPage({ params }: TakeoverPageProps) {
 
           <div>
             <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-mcr-green/10">
-                <Presentation className="h-6 w-6 text-mcr-green" />
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-mcr-teal/10">
+                <Presentation className="h-6 w-6 text-mcr-teal" />
               </div>
               <div>
                 <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
                   10-Minute Takeover
                   {isUpcoming && (
-                    <Badge variant="secondary" className="bg-mcr-green/10 text-mcr-green">
+                    <Badge variant="secondary" className="bg-mcr-teal/10 text-mcr-teal">
                       Upcoming
                     </Badge>
                   )}
@@ -112,8 +112,8 @@ export default async function TakeoverPage({ params }: TakeoverPageProps) {
             <CardContent className="space-y-4">
               {takeover.top_learnings?.map((learning, index) => (
                 <div key={index} className="flex gap-3">
-                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-mcr-green/10">
-                    <CheckCircle className="h-4 w-4 text-mcr-green" />
+                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-mcr-teal/10">
+                    <CheckCircle className="h-4 w-4 text-mcr-teal" />
                   </div>
                   <p className="text-sm">{learning}</p>
                 </div>

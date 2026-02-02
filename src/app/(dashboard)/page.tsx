@@ -237,10 +237,10 @@ export default async function DashboardPage() {
             </Link>
 
             <Link href="/takeovers/new">
-              <Card className="hover:border-mcr-green hover:bg-mcr-green/5 transition-colors cursor-pointer h-full">
+              <Card className="hover:border-mcr-teal hover:bg-mcr-teal/5 transition-colors cursor-pointer h-full">
                 <CardHeader className="pb-2">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-mcr-green/10">
-                    <Presentation className="h-5 w-5 text-mcr-green" />
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-mcr-teal/10">
+                    <Presentation className="h-5 w-5 text-mcr-teal" />
                   </div>
                 </CardHeader>
                 <CardContent>

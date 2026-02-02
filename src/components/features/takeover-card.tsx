@@ -16,17 +16,17 @@ export function TakeoverCard({ takeover, presenterName }: TakeoverCardProps) {
 
   return (
     <Link href={`/takeovers/${takeover.id}`}>
-      <Card className="h-full hover:border-mcr-green hover:bg-muted/30 transition-colors cursor-pointer">
+      <Card className="h-full hover:border-mcr-teal hover:bg-muted/30 transition-colors cursor-pointer">
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between gap-2">
             <CardTitle className="text-lg leading-tight flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-mcr-green/10">
-                <Presentation className="h-4 w-4 text-mcr-green" />
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-mcr-teal/10">
+                <Presentation className="h-4 w-4 text-mcr-teal" />
               </div>
               10-Minute Takeover
             </CardTitle>
             {isUpcoming && (
-              <Badge variant="secondary" className="bg-mcr-green/10 text-mcr-green">
+              <Badge variant="secondary" className="bg-mcr-teal/10 text-mcr-teal">
                 Upcoming
               </Badge>
             )}
@@ -55,7 +55,7 @@ export function TakeoverCard({ takeover, presenterName }: TakeoverCardProps) {
           )}
           <div className="flex flex-wrap gap-1.5">
             <Badge variant="secondary" className="text-xs font-normal">
-              <MessageSquare className="mr-1 h-3 w-3 text-mcr-green" />
+              <MessageSquare className="mr-1 h-3 w-3 text-mcr-teal" />
               {learningsCount} learning{learningsCount !== 1 ? "s" : ""} to share
             </Badge>
           </div>

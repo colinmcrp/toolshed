@@ -21,7 +21,9 @@ import {
 } from "@/components/ui/form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import type { Postcard } from "@/types/database";
+import { VisibilitySelector } from "./visibility-selector";
+import { ThemeSelector } from "./theme-selector";
+import type { Postcard, Team, Visibility, Theme } from "@/types/database";
 
 const postcardSchema = z.object({
   training_title: z.string().min(1, "Training title is required"),
@@ -29,6 +31,9 @@ const postcardSchema = z.object({
   lightbulb_moment: z.string().optional(),
   programme_impact: z.string().optional(),
   golden_nugget: z.string().optional(),
+  visibility: z.enum(["org", "team"]),
+  team_id: z.string().nullable().optional(),
+  themes: z.array(z.string()),
 });
 
 type PostcardForm = z.infer<typeof postcardSchema>;
@@ -36,6 +41,8 @@ type PostcardForm = z.infer<typeof postcardSchema>;
 interface PostcardFormProps {
   postcard?: Postcard;
   userId: string;
+  userTeam: Team | null;
+  initialThemeIds?: string[];
 }
 
 const sections = [
@@ -77,9 +84,12 @@ const sections = [
   },
 ];
 
-export function PostcardForm({ postcard, userId }: PostcardFormProps) {
+export function PostcardForm({ postcard, userId, userTeam, initialThemeIds = [] }: PostcardFormProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [visibility, setVisibility] = useState<Visibility>(postcard?.visibility ?? "org");
+  const [teamId, setTeamId] = useState<string | null>(postcard?.team_id ?? null);
+  const [selectedThemeIds, setSelectedThemeIds] = useState<string[]>(initialThemeIds);
   const isEditing = !!postcard;
 
   const form = useForm<PostcardForm>({
@@ -90,32 +100,78 @@ export function PostcardForm({ postcard, userId }: PostcardFormProps) {
       lightbulb_moment: postcard?.lightbulb_moment ?? "",
       programme_impact: postcard?.programme_impact ?? "",
       golden_nugget: postcard?.golden_nugget ?? "",
+      visibility: postcard?.visibility ?? "org",
+      team_id: postcard?.team_id ?? null,
+      themes: initialThemeIds,
     },
   });
+
+  const handleVisibilityChange = (newVisibility: Visibility, newTeamId: string | null) => {
+    setVisibility(newVisibility);
+    setTeamId(newTeamId);
+    form.setValue("visibility", newVisibility);
+    form.setValue("team_id", newTeamId);
+  };
 
   async function onSubmit(data: PostcardForm) {
     setIsSubmitting(true);
     const supabase = createClient();
 
     try {
+      // Remove themes from data as it's not a column on the postcards table
+      const { themes, ...postcardData } = data;
+
+      let postcardId: string;
+
       if (isEditing) {
         const { error } = await supabase
           .from("postcards")
-          .update(data)
+          .update({
+            ...postcardData,
+            visibility,
+            team_id: visibility === "team" ? teamId : null,
+          })
           .eq("id", postcard.id);
 
         if (error) throw error;
-        toast.success("Postcard updated successfully");
+        postcardId = postcard.id;
       } else {
-        const { error } = await supabase.from("postcards").insert({
-          ...data,
-          author_id: userId,
-        });
+        const { data: newPostcard, error } = await supabase
+          .from("postcards")
+          .insert({
+            ...postcardData,
+            author_id: userId,
+            visibility,
+            team_id: visibility === "team" ? teamId : null,
+          })
+          .select("id")
+          .single();
 
         if (error) throw error;
-        toast.success("Postcard created successfully");
+        postcardId = newPostcard.id;
       }
 
+      // Sync themes
+      // Delete existing theme associations
+      await supabase
+        .from("postcard_themes")
+        .delete()
+        .eq("postcard_id", postcardId);
+
+      // Insert new theme associations
+      if (selectedThemeIds.length > 0) {
+        const { error: themesError } = await supabase
+          .from("postcard_themes")
+          .insert(
+            selectedThemeIds.map((themeId) => ({
+              postcard_id: postcardId,
+              theme_id: themeId,
+            }))
+          );
+        if (themesError) throw themesError;
+      }
+
+      toast.success(isEditing ? "Postcard updated successfully" : "Postcard created successfully");
       router.push("/postcards");
       router.refresh();
     } catch (error) {
@@ -184,6 +240,25 @@ export function PostcardForm({ postcard, userId }: PostcardFormProps) {
             );
           })}
         </div>
+
+        <div className="space-y-2">
+          <FormLabel>Themes</FormLabel>
+          <ThemeSelector
+            selectedThemeIds={selectedThemeIds}
+            onSelectionChange={setSelectedThemeIds}
+            disabled={isSubmitting}
+          />
+          <p className="text-sm text-muted-foreground">
+            Add themes to help others find this postcard
+          </p>
+        </div>
+
+        <VisibilitySelector
+          value={visibility}
+          onChange={handleVisibilityChange}
+          userTeam={userTeam}
+          disabled={isSubmitting}
+        />
 
         <div className="flex justify-end gap-4">
           <Button

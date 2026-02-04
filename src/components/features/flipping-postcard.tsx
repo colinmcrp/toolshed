@@ -3,17 +3,19 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import Link from "next/link";
 import { createPortal } from "react-dom";
-import { Lightbulb, Sparkles, Target, Gem, Calendar, X, Pencil, RotateCcw } from "lucide-react";
+import { Lightbulb, Sparkles, Target, Gem, Calendar, X, Pencil, RotateCcw, Globe, Users } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import type { Postcard } from "@/types/database";
+import type { Postcard, Theme } from "@/types/database";
 
 interface FlippingPostcardProps {
   postcard: Postcard;
   authorName?: string;
   isOwner?: boolean;
+  teamName?: string;
+  themes?: Theme[];
 }
 
 const sectionConfig = [
@@ -56,7 +58,7 @@ const sectionConfig = [
   },
 ];
 
-export function FlippingPostcard({ postcard, authorName, isOwner }: FlippingPostcardProps) {
+export function FlippingPostcard({ postcard, authorName, isOwner, teamName, themes = [] }: FlippingPostcardProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isFlipped, setIsFlipped] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
@@ -361,7 +363,20 @@ export function FlippingPostcard({ postcard, authorName, isOwner }: FlippingPost
               <CardTitle className="text-lg leading-tight">
                 {postcard.training_title}
               </CardTitle>
-              <RotateCcw className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+              <div className="flex items-center gap-1.5 shrink-0">
+                {postcard.visibility === "team" ? (
+                  <Badge variant="outline" className="text-xs font-normal">
+                    <Users className="mr-1 h-3 w-3" />
+                    {teamName ?? "Team"}
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="text-xs font-normal text-muted-foreground">
+                    <Globe className="mr-1 h-3 w-3" />
+                    Org
+                  </Badge>
+                )}
+                <RotateCcw className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
             </div>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Calendar className="h-3 w-3" />
@@ -391,6 +406,19 @@ export function FlippingPostcard({ postcard, authorName, isOwner }: FlippingPost
                 );
               })}
             </div>
+            {themes.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-2 pt-2 border-t">
+                {themes.map((theme) => (
+                  <Badge
+                    key={theme.id}
+                    variant="secondary"
+                    className="text-xs font-normal"
+                  >
+                    {theme.name}
+                  </Badge>
+                ))}
+              </div>
+            )}
             <p className="text-xs text-muted-foreground mt-3 opacity-0 group-hover:opacity-100 transition-opacity">
               Click to flip over →
             </p>

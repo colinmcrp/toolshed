@@ -16,17 +16,10 @@ interface ThreeTwoOnePageProps {
 async function ThreeTwoOneList({ themeSlugs }: { themeSlugs: string[] }) {
   const supabase = await createClient();
 
-  const { data: items, error } = await supabase
-    .from("three_two_one")
-    .select(`
-      *,
-      profiles:author_id (full_name),
-      teams:team_id (name),
-      three_two_one_themes (
-        themes (id, name, slug)
-      )
-    `)
-    .order("created_at", { ascending: false });
+  // Use RPC for efficient database-side filtering
+  const { data: rpcData, error } = await supabase.rpc("get_three_two_ones_by_themes", {
+    theme_slugs: themeSlugs.length > 0 ? themeSlugs : null,
+  });
 
   if (error) {
     console.error("Error fetching 3-2-1s:", error);
@@ -37,20 +30,20 @@ async function ThreeTwoOneList({ themeSlugs }: { themeSlugs: string[] }) {
     );
   }
 
-  // Transform and filter items
-  let transformedItems = (items ?? []).map((item) => ({
-    ...item,
-    themes: (item.three_two_one_themes as Array<{ themes: Theme }> | null)?.map(
-      (tt) => tt.themes
-    ) ?? [],
+  // Transform RPC results
+  const transformedItems = (rpcData ?? []).map((item) => ({
+    id: item.id,
+    training_title: item.training_title,
+    learnings: item.learnings,
+    changes: item.changes,
+    question: item.question,
+    visibility: item.visibility as "org" | "team",
+    team_id: item.team_id,
+    author_id: item.author_id,
+    created_at: item.created_at,
+    teams: item.team_name ? { name: item.team_name } : null,
+    themes: (item.theme_data as Theme[]) ?? [],
   }));
-
-  // Filter by theme if specified
-  if (themeSlugs.length > 0) {
-    transformedItems = transformedItems.filter((item) =>
-      item.themes.some((theme) => themeSlugs.includes(theme.slug))
-    );
-  }
 
   if (transformedItems.length === 0) {
     return (
@@ -84,8 +77,7 @@ async function ThreeTwoOneList({ themeSlugs }: { themeSlugs: string[] }) {
         <ThreeTwoOneCard
           key={item.id}
           item={item}
-          authorName={(item.profiles as { full_name: string } | null)?.full_name ?? undefined}
-          teamName={(item.teams as { name: string } | null)?.name ?? undefined}
+          teamName={item.teams?.name ?? undefined}
           themes={item.themes}
         />
       ))}

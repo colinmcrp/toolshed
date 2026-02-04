@@ -71,9 +71,12 @@ export function ThemeSelector({
       .replace(/\s+/g, "-")
       .replace(/[^a-z0-9-]/g, "");
 
+    // Get current user for created_by field
+    const { data: { user } } = await supabase.auth.getUser();
+
     const { data, error } = await supabase
       .from("themes")
-      .insert({ name: search.trim(), slug })
+      .insert({ name: search.trim(), slug, created_by: user?.id })
       .select()
       .single();
 

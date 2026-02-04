@@ -336,7 +336,72 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
-      [_ in never]: never;
+      get_postcards_by_themes: {
+        Args: {
+          theme_slugs: string[] | null;
+        };
+        Returns: {
+          id: string;
+          training_title: string;
+          elevator_pitch: string | null;
+          lightbulb_moment: string | null;
+          programme_impact: string | null;
+          golden_nugget: string | null;
+          visibility: string;
+          team_id: string | null;
+          author_id: string;
+          created_at: string;
+          team_name: string | null;
+          theme_data: Json;
+        }[];
+      };
+      get_three_two_ones_by_themes: {
+        Args: {
+          theme_slugs: string[] | null;
+        };
+        Returns: {
+          id: string;
+          training_title: string;
+          learnings: string[];
+          changes: string[];
+          question: string | null;
+          visibility: string;
+          team_id: string | null;
+          author_id: string | null;
+          created_at: string;
+          team_name: string | null;
+          theme_data: Json;
+        }[];
+      };
+      get_takeovers_by_themes: {
+        Args: {
+          theme_slugs: string[] | null;
+        };
+        Returns: {
+          id: string;
+          meeting_date: string;
+          top_learnings: string[] | null;
+          visibility: string;
+          team_id: string | null;
+          presenter_id: string | null;
+          created_at: string;
+          team_name: string | null;
+          theme_data: Json;
+        }[];
+      };
+      global_search: {
+        Args: {
+          search_term: string;
+          theme_ids: string[] | null;
+        };
+        Returns: {
+          id: string;
+          type: string;
+          title: string;
+          preview: string | null;
+          theme_data: Json;
+        }[];
+      };
     };
     Enums: {
       [_ in never]: never;

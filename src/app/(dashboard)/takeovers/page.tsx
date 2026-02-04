@@ -16,17 +16,10 @@ interface TakeoversPageProps {
 async function TakeoversList({ themeSlugs }: { themeSlugs: string[] }) {
   const supabase = await createClient();
 
-  const { data: takeovers, error } = await supabase
-    .from("takeovers")
-    .select(`
-      *,
-      profiles:presenter_id (full_name),
-      teams:team_id (name),
-      takeover_themes (
-        themes (id, name, slug)
-      )
-    `)
-    .order("meeting_date", { ascending: false });
+  // Use RPC for efficient database-side filtering
+  const { data: rpcData, error } = await supabase.rpc("get_takeovers_by_themes", {
+    theme_slugs: themeSlugs.length > 0 ? themeSlugs : null,
+  });
 
   if (error) {
     console.error("Error fetching takeovers:", error);
@@ -37,20 +30,18 @@ async function TakeoversList({ themeSlugs }: { themeSlugs: string[] }) {
     );
   }
 
-  // Transform and filter takeovers
-  let transformedTakeovers = (takeovers ?? []).map((takeover) => ({
-    ...takeover,
-    themes: (takeover.takeover_themes as Array<{ themes: Theme }> | null)?.map(
-      (tt) => tt.themes
-    ) ?? [],
+  // Transform RPC results
+  const transformedTakeovers = (rpcData ?? []).map((takeover) => ({
+    id: takeover.id,
+    meeting_date: takeover.meeting_date,
+    top_learnings: takeover.top_learnings,
+    visibility: takeover.visibility as "org" | "team",
+    team_id: takeover.team_id,
+    presenter_id: takeover.presenter_id,
+    created_at: takeover.created_at,
+    teams: takeover.team_name ? { name: takeover.team_name } : null,
+    themes: (takeover.theme_data as Theme[]) ?? [],
   }));
-
-  // Filter by theme if specified
-  if (themeSlugs.length > 0) {
-    transformedTakeovers = transformedTakeovers.filter((takeover) =>
-      takeover.themes.some((theme) => themeSlugs.includes(theme.slug))
-    );
-  }
 
   if (transformedTakeovers.length === 0) {
     return (
@@ -84,8 +75,7 @@ async function TakeoversList({ themeSlugs }: { themeSlugs: string[] }) {
         <TakeoverCard
           key={takeover.id}
           takeover={takeover}
-          presenterName={(takeover.profiles as { full_name: string } | null)?.full_name ?? undefined}
-          teamName={(takeover.teams as { name: string } | null)?.name ?? undefined}
+          teamName={takeover.teams?.name ?? undefined}
           themes={takeover.themes}
         />
       ))}

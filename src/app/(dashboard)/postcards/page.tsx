@@ -16,20 +16,10 @@ interface PostcardsPageProps {
 async function PostcardsList({ themeSlugs }: { themeSlugs: string[] }) {
   const [supabase, user] = await Promise.all([createClient(), getUser()]);
 
-  // Build query
-  let query = supabase
-    .from("postcards")
-    .select(`
-      *,
-      profiles:author_id (full_name),
-      teams:team_id (name),
-      postcard_themes (
-        themes (id, name, slug)
-      )
-    `)
-    .order("created_at", { ascending: false });
-
-  const { data: postcards, error } = await query;
+  // Use RPC for efficient database-side filtering
+  const { data: rpcData, error } = await supabase.rpc("get_postcards_by_themes", {
+    theme_slugs: themeSlugs.length > 0 ? themeSlugs : null,
+  });
 
   if (error) {
     console.error("Error fetching postcards:", error);
@@ -40,20 +30,21 @@ async function PostcardsList({ themeSlugs }: { themeSlugs: string[] }) {
     );
   }
 
-  // Transform and filter postcards
-  let transformedPostcards = (postcards ?? []).map((postcard) => ({
-    ...postcard,
-    themes: (postcard.postcard_themes as Array<{ themes: Theme }> | null)?.map(
-      (pt) => pt.themes
-    ) ?? [],
+  // Transform RPC results
+  const transformedPostcards = (rpcData ?? []).map((postcard) => ({
+    id: postcard.id,
+    training_title: postcard.training_title,
+    elevator_pitch: postcard.elevator_pitch,
+    lightbulb_moment: postcard.lightbulb_moment,
+    programme_impact: postcard.programme_impact,
+    golden_nugget: postcard.golden_nugget,
+    visibility: postcard.visibility as "org" | "team",
+    team_id: postcard.team_id,
+    author_id: postcard.author_id,
+    created_at: postcard.created_at,
+    teams: postcard.team_name ? { name: postcard.team_name } : null,
+    themes: (postcard.theme_data as Theme[]) ?? [],
   }));
-
-  // Filter by theme if specified
-  if (themeSlugs.length > 0) {
-    transformedPostcards = transformedPostcards.filter((postcard) =>
-      postcard.themes.some((theme) => themeSlugs.includes(theme.slug))
-    );
-  }
 
   if (transformedPostcards.length === 0) {
     return (
@@ -87,9 +78,8 @@ async function PostcardsList({ themeSlugs }: { themeSlugs: string[] }) {
         <FlippingPostcard
           key={postcard.id}
           postcard={postcard}
-          authorName={(postcard.profiles as { full_name: string } | null)?.full_name ?? undefined}
           isOwner={user?.id === postcard.author_id}
-          teamName={(postcard.teams as { name: string } | null)?.name ?? undefined}
+          teamName={postcard.teams?.name ?? undefined}
           themes={postcard.themes}
         />
       ))}

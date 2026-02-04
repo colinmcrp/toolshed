@@ -57,7 +57,7 @@ export function GlobalSearch() {
     fetchThemes();
   }, []);
 
-  // Search function
+  // Search function using RPC for efficient database-side filtering
   const performSearch = useCallback(async () => {
     if (!search.trim() && selectedThemeIds.length === 0) {
       setResults([]);
@@ -68,132 +68,31 @@ export function GlobalSearch() {
     const supabase = createClient();
 
     try {
-      const allResults: SearchResult[] = [];
+      // Use the global_search RPC function for efficient server-side search
+      const { data, error } = await supabase.rpc("global_search", {
+        search_term: search.trim(),
+        theme_ids: selectedThemeIds.length > 0 ? selectedThemeIds : null,
+      });
 
-      // Search postcards
-      let postcardQuery = supabase
-        .from("postcards")
-        .select(`
-          id, training_title, elevator_pitch,
-          postcard_themes (themes (id, name, slug))
-        `)
-        .limit(10);
-
-      if (search.trim()) {
-        postcardQuery = postcardQuery.or(
-          `training_title.ilike.%${search}%,elevator_pitch.ilike.%${search}%`
-        );
+      if (error) {
+        console.error("Search error:", error);
+        setResults([]);
+        return;
       }
 
-      const { data: postcards } = await postcardQuery;
+      // Transform RPC results to SearchResult format
+      const searchResults: SearchResult[] = (data ?? []).map((item) => ({
+        id: item.id,
+        type: item.type as "postcard" | "three_two_one" | "takeover",
+        title: item.title,
+        preview: item.preview,
+        themes: (item.theme_data as Theme[]) ?? [],
+      }));
 
-      if (postcards) {
-        for (const p of postcards) {
-          const itemThemes = (p.postcard_themes as Array<{ themes: Theme }> | null)?.map(
-            (pt) => pt.themes
-          ) ?? [];
-
-          // Filter by selected themes if any
-          if (selectedThemeIds.length > 0) {
-            const hasMatchingTheme = itemThemes.some((t) =>
-              selectedThemeIds.includes(t.id)
-            );
-            if (!hasMatchingTheme) continue;
-          }
-
-          allResults.push({
-            id: p.id,
-            type: "postcard",
-            title: p.training_title,
-            preview: p.elevator_pitch,
-            themes: itemThemes,
-          });
-        }
-      }
-
-      // Search 3-2-1s
-      let threeTwoOneQuery = supabase
-        .from("three_two_one")
-        .select(`
-          id, training_title, learnings,
-          three_two_one_themes (themes (id, name, slug))
-        `)
-        .limit(10);
-
-      if (search.trim()) {
-        threeTwoOneQuery = threeTwoOneQuery.ilike("training_title", `%${search}%`);
-      }
-
-      const { data: threeTwoOnes } = await threeTwoOneQuery;
-
-      if (threeTwoOnes) {
-        for (const t of threeTwoOnes) {
-          const itemThemes = (t.three_two_one_themes as Array<{ themes: Theme }> | null)?.map(
-            (tt) => tt.themes
-          ) ?? [];
-
-          if (selectedThemeIds.length > 0) {
-            const hasMatchingTheme = itemThemes.some((theme) =>
-              selectedThemeIds.includes(theme.id)
-            );
-            if (!hasMatchingTheme) continue;
-          }
-
-          allResults.push({
-            id: t.id,
-            type: "three_two_one",
-            title: t.training_title,
-            preview: t.learnings?.[0] ?? null,
-            themes: itemThemes,
-          });
-        }
-      }
-
-      // Search takeovers
-      let takeoverQuery = supabase
-        .from("takeovers")
-        .select(`
-          id, meeting_date, top_learnings,
-          takeover_themes (themes (id, name, slug))
-        `)
-        .limit(10);
-
-      const { data: takeovers } = await takeoverQuery;
-
-      if (takeovers) {
-        for (const tk of takeovers) {
-          const itemThemes = (tk.takeover_themes as Array<{ themes: Theme }> | null)?.map(
-            (tt) => tt.themes
-          ) ?? [];
-
-          if (selectedThemeIds.length > 0) {
-            const hasMatchingTheme = itemThemes.some((theme) =>
-              selectedThemeIds.includes(theme.id)
-            );
-            if (!hasMatchingTheme) continue;
-          }
-
-          // For takeovers, also check if search matches learnings
-          if (search.trim()) {
-            const matchesLearnings = tk.top_learnings?.some((l) =>
-              l.toLowerCase().includes(search.toLowerCase())
-            );
-            if (!matchesLearnings) continue;
-          }
-
-          allResults.push({
-            id: tk.id,
-            type: "takeover",
-            title: `Takeover: ${new Date(tk.meeting_date).toLocaleDateString()}`,
-            preview: tk.top_learnings?.[0] ?? null,
-            themes: itemThemes,
-          });
-        }
-      }
-
-      setResults(allResults);
+      setResults(searchResults);
     } catch (error) {
       console.error("Search error:", error);
+      setResults([]);
     } finally {
       setIsLoading(false);
     }

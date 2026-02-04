@@ -20,7 +20,9 @@ import {
 } from "@/components/ui/form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import type { ThreeTwoOne } from "@/types/database";
+import { VisibilitySelector } from "./visibility-selector";
+import { ThemeSelector } from "./theme-selector";
+import type { ThreeTwoOne, Team, Visibility } from "@/types/database";
 
 const threeTwoOneSchema = z.object({
   training_title: z.string().min(1, "Training title is required"),
@@ -30,6 +32,8 @@ const threeTwoOneSchema = z.object({
   change1: z.string().min(1, "Please enter your first change"),
   change2: z.string().min(1, "Please enter your second change"),
   question: z.string().optional(),
+  visibility: z.enum(["org", "team"]),
+  team_id: z.string().nullable().optional(),
 });
 
 type ThreeTwoOneForm = z.infer<typeof threeTwoOneSchema>;
@@ -37,11 +41,16 @@ type ThreeTwoOneForm = z.infer<typeof threeTwoOneSchema>;
 interface ThreeTwoOneFormProps {
   threeTwoOne?: ThreeTwoOne;
   userId: string;
+  userTeam: Team | null;
+  initialThemeIds?: string[];
 }
 
-export function ThreeTwoOneForm({ threeTwoOne, userId }: ThreeTwoOneFormProps) {
+export function ThreeTwoOneForm({ threeTwoOne, userId, userTeam, initialThemeIds = [] }: ThreeTwoOneFormProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [visibility, setVisibility] = useState<Visibility>(threeTwoOne?.visibility ?? "org");
+  const [teamId, setTeamId] = useState<string | null>(threeTwoOne?.team_id ?? null);
+  const [selectedThemeIds, setSelectedThemeIds] = useState<string[]>(initialThemeIds);
   const isEditing = !!threeTwoOne;
 
   const form = useForm<ThreeTwoOneForm>({
@@ -54,8 +63,17 @@ export function ThreeTwoOneForm({ threeTwoOne, userId }: ThreeTwoOneFormProps) {
       change1: threeTwoOne?.changes?.[0] ?? "",
       change2: threeTwoOne?.changes?.[1] ?? "",
       question: threeTwoOne?.question ?? "",
+      visibility: threeTwoOne?.visibility ?? "org",
+      team_id: threeTwoOne?.team_id ?? null,
     },
   });
+
+  const handleVisibilityChange = (newVisibility: Visibility, newTeamId: string | null) => {
+    setVisibility(newVisibility);
+    setTeamId(newTeamId);
+    form.setValue("visibility", newVisibility);
+    form.setValue("team_id", newTeamId);
+  };
 
   async function onSubmit(data: ThreeTwoOneForm) {
     setIsSubmitting(true);
@@ -66,9 +84,13 @@ export function ThreeTwoOneForm({ threeTwoOne, userId }: ThreeTwoOneFormProps) {
       learnings: [data.learning1, data.learning2, data.learning3],
       changes: [data.change1, data.change2],
       question: data.question || null,
+      visibility,
+      team_id: visibility === "team" ? teamId : null,
     };
 
     try {
+      let itemId: string;
+
       if (isEditing) {
         const { error } = await supabase
           .from("three_two_one")
@@ -76,17 +98,40 @@ export function ThreeTwoOneForm({ threeTwoOne, userId }: ThreeTwoOneFormProps) {
           .eq("id", threeTwoOne.id);
 
         if (error) throw error;
-        toast.success("3-2-1 updated successfully");
+        itemId = threeTwoOne.id;
       } else {
-        const { error } = await supabase.from("three_two_one").insert({
-          ...payload,
-          author_id: userId,
-        });
+        const { data: newItem, error } = await supabase
+          .from("three_two_one")
+          .insert({
+            ...payload,
+            author_id: userId,
+          })
+          .select("id")
+          .single();
 
         if (error) throw error;
-        toast.success("3-2-1 created successfully");
+        itemId = newItem.id;
       }
 
+      // Sync themes
+      await supabase
+        .from("three_two_one_themes")
+        .delete()
+        .eq("three_two_one_id", itemId);
+
+      if (selectedThemeIds.length > 0) {
+        const { error: themesError } = await supabase
+          .from("three_two_one_themes")
+          .insert(
+            selectedThemeIds.map((themeId) => ({
+              three_two_one_id: itemId,
+              theme_id: themeId,
+            }))
+          );
+        if (themesError) throw themesError;
+      }
+
+      toast.success(isEditing ? "3-2-1 updated successfully" : "3-2-1 created successfully");
       router.push("/three-two-one");
       router.refresh();
     } catch (error) {
@@ -233,6 +278,25 @@ export function ThreeTwoOneForm({ threeTwoOne, userId }: ThreeTwoOneFormProps) {
             />
           </CardContent>
         </Card>
+
+        <div className="space-y-2">
+          <FormLabel>Themes</FormLabel>
+          <ThemeSelector
+            selectedThemeIds={selectedThemeIds}
+            onSelectionChange={setSelectedThemeIds}
+            disabled={isSubmitting}
+          />
+          <p className="text-sm text-muted-foreground">
+            Add themes to help others find this reflection
+          </p>
+        </div>
+
+        <VisibilitySelector
+          value={visibility}
+          onChange={handleVisibilityChange}
+          userTeam={userTeam}
+          disabled={isSubmitting}
+        />
 
         <div className="flex justify-end gap-4">
           <Button

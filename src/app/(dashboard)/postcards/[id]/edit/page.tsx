@@ -18,11 +18,17 @@ export default async function EditPostcardPage({ params }: EditPostcardPageProps
     redirect("/login");
   }
 
-  const { data: postcard, error } = await supabase
-    .from("postcards")
-    .select("*")
-    .eq("id", id)
-    .single();
+  const [postcardResult, profileResult] = await Promise.all([
+    supabase.from("postcards").select("*").eq("id", id).single(),
+    supabase
+      .from("profiles")
+      .select("team_id, teams:team_id(id, name, created_at)")
+      .eq("id", user.id)
+      .single(),
+  ]);
+
+  const { data: postcard, error } = postcardResult;
+  const userTeam = profileResult.data?.teams ?? null;
 
   if (error || !postcard) {
     notFound();
@@ -49,7 +55,7 @@ export default async function EditPostcardPage({ params }: EditPostcardPageProps
               Update your learning postcard.
             </p>
           </div>
-          <PostcardForm postcard={postcard} userId={user.id} />
+          <PostcardForm postcard={postcard} userId={user.id} userTeam={userTeam} />
         </div>
       </main>
     </>

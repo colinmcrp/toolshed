@@ -1,15 +1,17 @@
 import Link from "next/link";
-import { Presentation, Calendar, MessageSquare } from "lucide-react";
+import { Presentation, Calendar, MessageSquare, Globe, Users } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import type { Takeover } from "@/types/database";
+import type { Takeover, Theme } from "@/types/database";
 
 interface TakeoverCardProps {
   takeover: Takeover;
   presenterName?: string;
+  teamName?: string;
+  themes?: Theme[];
 }
 
-export function TakeoverCard({ takeover, presenterName }: TakeoverCardProps) {
+export function TakeoverCard({ takeover, presenterName, teamName, themes = [] }: TakeoverCardProps) {
   const learningsCount = takeover.top_learnings?.length ?? 0;
   const meetingDate = new Date(takeover.meeting_date);
   const isUpcoming = meetingDate >= new Date(new Date().setHours(0, 0, 0, 0));
@@ -25,11 +27,24 @@ export function TakeoverCard({ takeover, presenterName }: TakeoverCardProps) {
               </div>
               10-Minute Takeover
             </CardTitle>
-            {isUpcoming && (
-              <Badge variant="secondary" className="bg-mcr-teal/10 text-mcr-teal">
-                Upcoming
-              </Badge>
-            )}
+            <div className="flex gap-1.5 shrink-0">
+              {isUpcoming && (
+                <Badge variant="secondary" className="bg-mcr-teal/10 text-mcr-teal">
+                  Upcoming
+                </Badge>
+              )}
+              {takeover.visibility === "team" ? (
+                <Badge variant="outline" className="text-xs font-normal">
+                  <Users className="mr-1 h-3 w-3" />
+                  {teamName ?? "Team"}
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="text-xs font-normal text-muted-foreground">
+                  <Globe className="mr-1 h-3 w-3" />
+                  Org
+                </Badge>
+              )}
+            </div>
           </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
             <Calendar className="h-3 w-3" />
@@ -59,6 +74,19 @@ export function TakeoverCard({ takeover, presenterName }: TakeoverCardProps) {
               {learningsCount} learning{learningsCount !== 1 ? "s" : ""} to share
             </Badge>
           </div>
+          {themes.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-2 pt-2 border-t">
+              {themes.map((theme) => (
+                <Badge
+                  key={theme.id}
+                  variant="secondary"
+                  className="text-xs font-normal"
+                >
+                  {theme.name}
+                </Badge>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </Link>

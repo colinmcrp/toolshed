@@ -21,7 +21,9 @@ import {
 } from "@/components/ui/form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import type { Takeover } from "@/types/database";
+import { VisibilitySelector } from "./visibility-selector";
+import { ThemeSelector } from "./theme-selector";
+import type { Takeover, Team, Visibility } from "@/types/database";
 
 const takeoverSchema = z.object({
   meeting_date: z.string().min(1, "Meeting date is required"),
@@ -30,6 +32,8 @@ const takeoverSchema = z.object({
       value: z.string().min(1, "Learning cannot be empty"),
     })
   ).min(1, "Add at least one learning"),
+  visibility: z.enum(["org", "team"]),
+  team_id: z.string().nullable().optional(),
 });
 
 type TakeoverForm = z.infer<typeof takeoverSchema>;
@@ -37,11 +41,16 @@ type TakeoverForm = z.infer<typeof takeoverSchema>;
 interface TakeoverFormProps {
   takeover?: Takeover;
   userId: string;
+  userTeam: Team | null;
+  initialThemeIds?: string[];
 }
 
-export function TakeoverForm({ takeover, userId }: TakeoverFormProps) {
+export function TakeoverForm({ takeover, userId, userTeam, initialThemeIds = [] }: TakeoverFormProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [visibility, setVisibility] = useState<Visibility>(takeover?.visibility ?? "org");
+  const [teamId, setTeamId] = useState<string | null>(takeover?.team_id ?? null);
+  const [selectedThemeIds, setSelectedThemeIds] = useState<string[]>(initialThemeIds);
   const isEditing = !!takeover;
 
   const form = useForm<TakeoverForm>({
@@ -53,8 +62,17 @@ export function TakeoverForm({ takeover, userId }: TakeoverFormProps) {
         { value: "" },
         { value: "" },
       ],
+      visibility: takeover?.visibility ?? "org",
+      team_id: takeover?.team_id ?? null,
     },
   });
+
+  const handleVisibilityChange = (newVisibility: Visibility, newTeamId: string | null) => {
+    setVisibility(newVisibility);
+    setTeamId(newTeamId);
+    form.setValue("visibility", newVisibility);
+    form.setValue("team_id", newTeamId);
+  };
 
   const { fields, append, remove } = useFieldArray({
     control: form.control,
@@ -68,9 +86,13 @@ export function TakeoverForm({ takeover, userId }: TakeoverFormProps) {
     const payload = {
       meeting_date: data.meeting_date,
       top_learnings: data.top_learnings.map((l) => l.value).filter((v) => v.trim()),
+      visibility,
+      team_id: visibility === "team" ? teamId : null,
     };
 
     try {
+      let itemId: string;
+
       if (isEditing) {
         const { error } = await supabase
           .from("takeovers")
@@ -78,17 +100,40 @@ export function TakeoverForm({ takeover, userId }: TakeoverFormProps) {
           .eq("id", takeover.id);
 
         if (error) throw error;
-        toast.success("Takeover updated successfully");
+        itemId = takeover.id;
       } else {
-        const { error } = await supabase.from("takeovers").insert({
-          ...payload,
-          presenter_id: userId,
-        });
+        const { data: newItem, error } = await supabase
+          .from("takeovers")
+          .insert({
+            ...payload,
+            presenter_id: userId,
+          })
+          .select("id")
+          .single();
 
         if (error) throw error;
-        toast.success("Takeover created successfully");
+        itemId = newItem.id;
       }
 
+      // Sync themes
+      await supabase
+        .from("takeover_themes")
+        .delete()
+        .eq("takeover_id", itemId);
+
+      if (selectedThemeIds.length > 0) {
+        const { error: themesError } = await supabase
+          .from("takeover_themes")
+          .insert(
+            selectedThemeIds.map((themeId) => ({
+              takeover_id: itemId,
+              theme_id: themeId,
+            }))
+          );
+        if (themesError) throw themesError;
+      }
+
+      toast.success(isEditing ? "Takeover updated successfully" : "Takeover created successfully");
       router.push("/takeovers");
       router.refresh();
     } catch (error) {
@@ -183,6 +228,25 @@ export function TakeoverForm({ takeover, userId }: TakeoverFormProps) {
             </Button>
           </CardContent>
         </Card>
+
+        <div className="space-y-2">
+          <FormLabel>Themes</FormLabel>
+          <ThemeSelector
+            selectedThemeIds={selectedThemeIds}
+            onSelectionChange={setSelectedThemeIds}
+            disabled={isSubmitting}
+          />
+          <p className="text-sm text-muted-foreground">
+            Add themes to help others find this takeover
+          </p>
+        </div>
+
+        <VisibilitySelector
+          value={visibility}
+          onChange={handleVisibilityChange}
+          userTeam={userTeam}
+          disabled={isSubmitting}
+        />
 
         <div className="flex justify-end gap-4">
           <Button

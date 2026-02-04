@@ -18,11 +18,17 @@ export default async function EditTakeoverPage({ params }: EditTakeoverPageProps
     redirect("/login");
   }
 
-  const { data: takeover, error } = await supabase
-    .from("takeovers")
-    .select("*")
-    .eq("id", id)
-    .single();
+  const [takeoverResult, profileResult] = await Promise.all([
+    supabase.from("takeovers").select("*").eq("id", id).single(),
+    supabase
+      .from("profiles")
+      .select("team_id, teams:team_id(id, name, created_at)")
+      .eq("id", user.id)
+      .single(),
+  ]);
+
+  const { data: takeover, error } = takeoverResult;
+  const userTeam = profileResult.data?.teams ?? null;
 
   if (error || !takeover) {
     notFound();
@@ -49,7 +55,7 @@ export default async function EditTakeoverPage({ params }: EditTakeoverPageProps
               Update your scheduled takeover.
             </p>
           </div>
-          <TakeoverForm takeover={takeover} userId={user.id} />
+          <TakeoverForm takeover={takeover} userId={user.id} userTeam={userTeam} />
         </div>
       </main>
     </>

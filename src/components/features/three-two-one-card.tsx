@@ -1,15 +1,17 @@
 import Link from "next/link";
-import { BookOpen, RefreshCw, HelpCircle, Calendar } from "lucide-react";
+import { BookOpen, RefreshCw, HelpCircle, Calendar, Globe, Users } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import type { ThreeTwoOne } from "@/types/database";
+import type { ThreeTwoOne, Theme } from "@/types/database";
 
 interface ThreeTwoOneCardProps {
   item: ThreeTwoOne;
   authorName?: string;
+  teamName?: string;
+  themes?: Theme[];
 }
 
-export function ThreeTwoOneCard({ item, authorName }: ThreeTwoOneCardProps) {
+export function ThreeTwoOneCard({ item, authorName, teamName, themes = [] }: ThreeTwoOneCardProps) {
   return (
     <Link href={`/three-two-one/${item.id}`}>
       <Card className="h-full hover:border-mcr-orange hover:bg-muted/30 transition-colors cursor-pointer">
@@ -18,6 +20,17 @@ export function ThreeTwoOneCard({ item, authorName }: ThreeTwoOneCardProps) {
             <CardTitle className="text-lg leading-tight">
               {item.training_title}
             </CardTitle>
+            {item.visibility === "team" ? (
+              <Badge variant="outline" className="shrink-0 text-xs font-normal">
+                <Users className="mr-1 h-3 w-3" />
+                {teamName ?? "Team"}
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="shrink-0 text-xs font-normal text-muted-foreground">
+                <Globe className="mr-1 h-3 w-3" />
+                Org
+              </Badge>
+            )}
           </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Calendar className="h-3 w-3" />
@@ -52,6 +65,19 @@ export function ThreeTwoOneCard({ item, authorName }: ThreeTwoOneCardProps) {
               </Badge>
             )}
           </div>
+          {themes.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-2 pt-2 border-t">
+              {themes.map((theme) => (
+                <Badge
+                  key={theme.id}
+                  variant="secondary"
+                  className="text-xs font-normal"
+                >
+                  {theme.name}
+                </Badge>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </Link>

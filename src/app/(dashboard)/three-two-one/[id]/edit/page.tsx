@@ -18,11 +18,17 @@ export default async function EditThreeTwoOnePage({ params }: EditThreeTwoOnePag
     redirect("/login");
   }
 
-  const { data: item, error } = await supabase
-    .from("three_two_one")
-    .select("*")
-    .eq("id", id)
-    .single();
+  const [itemResult, profileResult] = await Promise.all([
+    supabase.from("three_two_one").select("*").eq("id", id).single(),
+    supabase
+      .from("profiles")
+      .select("team_id, teams:team_id(id, name, created_at)")
+      .eq("id", user.id)
+      .single(),
+  ]);
+
+  const { data: item, error } = itemResult;
+  const userTeam = profileResult.data?.teams ?? null;
 
   if (error || !item) {
     notFound();
@@ -49,7 +55,7 @@ export default async function EditThreeTwoOnePage({ params }: EditThreeTwoOnePag
               Update your 3-2-1 entry.
             </p>
           </div>
-          <ThreeTwoOneForm threeTwoOne={item} userId={user.id} />
+          <ThreeTwoOneForm threeTwoOne={item} userId={user.id} userTeam={userTeam} />
         </div>
       </main>
     </>

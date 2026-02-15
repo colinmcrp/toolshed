@@ -3,15 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  Home,
-  Mail,
-  ListChecks,
-  Presentation,
-  User,
-  LogOut,
-  Plus,
-} from "lucide-react";
+import { Home, User, LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import {
@@ -25,7 +17,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarSeparator,
 } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
@@ -43,39 +34,6 @@ const mainNavItems = [
     title: "Home",
     url: "/",
     icon: Home,
-  },
-  {
-    title: "Postcards",
-    url: "/postcards",
-    icon: Mail,
-  },
-  {
-    title: "3-2-1",
-    url: "/three-two-one",
-    icon: ListChecks,
-  },
-  {
-    title: "Takeovers",
-    url: "/takeovers",
-    icon: Presentation,
-  },
-];
-
-const createItems = [
-  {
-    title: "New Postcard",
-    url: "/postcards/new",
-    icon: Mail,
-  },
-  {
-    title: "New 3-2-1",
-    url: "/three-two-one/new",
-    icon: ListChecks,
-  },
-  {
-    title: "New Takeover",
-    url: "/takeovers/new",
-    icon: Presentation,
   },
 ];
 
@@ -131,29 +89,6 @@ export function AppSidebar({ user }: AppSidebarProps) {
                       (item.url !== "/" && pathname.startsWith(item.url))
                     }
                   >
-                    <Link href={item.url}>
-                      <item.icon />
-                      <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarSeparator />
-
-        <SidebarGroup>
-          <SidebarGroupLabel>
-            <Plus className="h-3 w-3 mr-1" />
-            Create New
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {createItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild isActive={pathname === item.url}>
                     <Link href={item.url}>
                       <item.icon />
                       <span>{item.title}</span>

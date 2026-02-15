@@ -121,7 +121,7 @@ export default function LoginPage() {
               priority
             />
           </div>
-          <CardTitle className="text-2xl">Welcome to The Tool Shed</CardTitle>
+          <CardTitle className="text-2xl">Welcome to MCR Pathways</CardTitle>
           <CardDescription>
             Sign in with your MCR Pathways email to continue
           </CardDescription>

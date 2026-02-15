@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "The Tool Shed | MCR Pathways",
-  description: "A social learning platform for MCR Pathways enabling peer-to-peer knowledge sharing from training and conferences.",
+  title: "MCR Pathways",
+  description: "MCR Pathways internal application.",
 };
 
 export default function RootLayout({

@@ -36,22 +36,34 @@ export async function GET(request: Request) {
               .join(" ") ||
             null;
 
-          let role: "staff" | "partner" = "staff";
+          let role: "staff" | "partner" | null = null;
           let partnerId: string | null = null;
 
-          if (!isStaffEmail(email)) {
+          if (isStaffEmail(email)) {
+            role = "staff";
+          } else {
             // Check if this is a partner domain
             const domain = getEmailDomainPart(email);
-            const { data: partnerDomain } = await supabase
-              .from("partner_domains")
-              .select("partner_id")
-              .eq("domain", domain)
-              .single();
+            if (domain) {
+              const { data: partnerDomain } = await supabase
+                .from("partner_domains")
+                .select("partner_id")
+                .eq("domain", domain)
+                .single();
 
-            if (partnerDomain) {
-              role = "partner";
-              partnerId = partnerDomain.partner_id;
+              if (partnerDomain) {
+                role = "partner";
+                partnerId = partnerDomain.partner_id;
+              }
             }
+          }
+
+          if (!role) {
+            // Unrecognized domain — do not create a profile
+            console.error(`Unauthorized domain for email: ${email}`);
+            return NextResponse.redirect(
+              `${origin}/login?error=unauthorized_domain`
+            );
           }
 
           await supabase.from("profiles").insert({

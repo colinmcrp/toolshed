@@ -32,6 +32,7 @@ export function DocumentsTable({ documents }: DocumentsTableProps) {
   const handleAnalyzePolicy = async () => {
     setAiLoading(true);
     try {
+      // TODO: Fetch actual document content from file_url when document storage is implemented
       const policyText =
         "Our Corporate Parenting plan aims to provide 10% of our workforce as mentors and offer 5 apprenticeships specifically for care-experienced youth.";
       const results = await analyzePolicyContent(policyText);

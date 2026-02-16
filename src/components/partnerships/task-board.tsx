@@ -55,10 +55,11 @@ export function TaskBoard({ tasks: initialTasks }: TaskBoardProps) {
   };
 
   const cycleStatus = (task: TaskItem) => {
+    if (task.status === "Completed") return;
     const next: Record<TaskStatus, TaskStatus> = {
       "To Do": "In Progress",
       "In Progress": "Completed",
-      "Completed": "To Do",
+      "Completed": "Completed",
     };
     startTransition(async () => {
       await updateTask(task.id, { status: next[task.status] });

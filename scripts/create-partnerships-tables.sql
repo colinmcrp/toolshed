@@ -127,6 +127,11 @@ CREATE POLICY "Staff full access to partner_domains" ON partner_domains
     EXISTS (SELECT 1 FROM profiles WHERE profiles.id = auth.uid() AND profiles.role IN ('staff', 'manager', 'admin'))
   );
 
+-- Allow public read on partner_domains for email validation during auth
+-- (users don't have a profile yet when validating their email domain)
+CREATE POLICY "Public read partner_domains for auth" ON partner_domains
+  FOR SELECT USING (true);
+
 CREATE POLICY "Staff full access to emails" ON emails
   FOR ALL USING (
     EXISTS (SELECT 1 FROM profiles WHERE profiles.id = auth.uid() AND profiles.role IN ('staff', 'manager', 'admin'))

@@ -8,7 +8,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { ArrowRight, CheckCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { isAllowedEmail, getEmailDomain } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -28,13 +27,7 @@ import {
 } from "@/components/ui/card";
 
 const loginSchema = z.object({
-  email: z
-    .string()
-    .email("Please enter a valid email address")
-    .refine(
-      (email) => isAllowedEmail(email),
-      `Only @${getEmailDomain()} email addresses are allowed`
-    ),
+  email: z.string().email("Please enter a valid email address"),
 });
 
 type LoginForm = z.infer<typeof loginSchema>;
@@ -54,6 +47,31 @@ export default function LoginPage() {
   async function onSubmit(data: LoginForm) {
     setIsLoading(true);
     setError(null);
+
+    // Validate email against server (checks staff domain + partner_domains)
+    try {
+      const validateRes = await fetch("/api/auth/validate-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: data.email }),
+      });
+      const validation = await validateRes.json();
+
+      if (!validation.allowed) {
+        setError(
+          "This email address is not associated with MCR Pathways or an approved partner organisation."
+        );
+        setIsLoading(false);
+        return;
+      }
+    } catch {
+      // If validation endpoint fails, proceed anyway in development
+      if (process.env.NODE_ENV !== "development") {
+        setError("Unable to verify email. Please try again.");
+        setIsLoading(false);
+        return;
+      }
+    }
 
     const supabase = createClient();
 
@@ -123,7 +141,7 @@ export default function LoginPage() {
           </div>
           <CardTitle className="text-2xl">Welcome to MCR Pathways</CardTitle>
           <CardDescription>
-            Sign in with your MCR Pathways email to continue
+            Sign in with your MCR Pathways or partner organisation email
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -138,7 +156,7 @@ export default function LoginPage() {
                     <FormControl>
                       <Input
                         type="email"
-                        placeholder={`you@${getEmailDomain()}`}
+                        placeholder="you@organisation.org"
                         autoComplete="email"
                         {...field}
                       />

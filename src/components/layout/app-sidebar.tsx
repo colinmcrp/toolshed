@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, User, LogOut } from "lucide-react";
+import { Home, User, LogOut, Handshake, Building2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import {
@@ -27,19 +27,35 @@ interface AppSidebarProps {
       full_name?: string;
     };
   } | null;
+  userRole?: "staff" | "manager" | "admin" | "partner";
 }
 
-const mainNavItems = [
+const staffNavItems = [
   {
     title: "Home",
     url: "/",
     icon: Home,
   },
+  {
+    title: "Partnerships",
+    url: "/partnerships",
+    icon: Handshake,
+  },
 ];
 
-export function AppSidebar({ user }: AppSidebarProps) {
+const partnerNavItems = [
+  {
+    title: "My Portal",
+    url: "/partnerships/portal",
+    icon: Building2,
+  },
+];
+
+export function AppSidebar({ user, userRole = "staff" }: AppSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+
+  const navItems = userRole === "partner" ? partnerNavItems : staffNavItems;
 
   const handleSignOut = async () => {
     const supabase = createClient();
@@ -80,7 +96,7 @@ export function AppSidebar({ user }: AppSidebarProps) {
           <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {mainNavItems.map((item) => (
+              {navItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     asChild

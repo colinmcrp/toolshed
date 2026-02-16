@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { isStaffEmail, getEmailDomainPart } from "@/lib/auth";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -12,7 +13,9 @@ export async function GET(request: Request) {
 
     if (!error) {
       // Ensure user has a profile
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (user) {
         const { data: existingProfile } = await supabase
           .from("profiles")
@@ -21,16 +24,53 @@ export async function GET(request: Request) {
           .single();
 
         if (!existingProfile) {
-          // Create profile from user metadata or email
-          const fullName = user.user_metadata?.full_name
-            || user.user_metadata?.name
-            || user.email?.split("@")[0]?.split(".").map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(" ")
-            || null;
+          // Determine role and partner_id from email domain
+          const email = user.email ?? "";
+          const fullName =
+            user.user_metadata?.full_name ||
+            user.user_metadata?.name ||
+            email
+              .split("@")[0]
+              ?.split(".")
+              .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+              .join(" ") ||
+            null;
+
+          let role: "staff" | "partner" | null = null;
+          let partnerId: string | null = null;
+
+          if (isStaffEmail(email)) {
+            role = "staff";
+          } else {
+            // Check if this is a partner domain
+            const domain = getEmailDomainPart(email);
+            if (domain) {
+              const { data: partnerDomain } = await supabase
+                .from("partner_domains")
+                .select("partner_id")
+                .eq("domain", domain)
+                .single();
+
+              if (partnerDomain) {
+                role = "partner";
+                partnerId = partnerDomain.partner_id;
+              }
+            }
+          }
+
+          if (!role) {
+            // Unrecognized domain — do not create a profile
+            console.error(`Unauthorized domain for email: ${email}`);
+            return NextResponse.redirect(
+              `${origin}/login?error=unauthorized_domain`
+            );
+          }
 
           await supabase.from("profiles").insert({
             id: user.id,
             full_name: fullName,
-            role: "staff",
+            role,
+            partner_id: partnerId,
           });
         }
       }
@@ -39,10 +79,8 @@ export async function GET(request: Request) {
       const isLocalEnv = process.env.NODE_ENV === "development";
 
       if (isLocalEnv) {
-        // Local development - use origin
         return NextResponse.redirect(`${origin}${next}`);
       } else if (forwardedHost) {
-        // Production with load balancer - use forwarded host
         return NextResponse.redirect(`https://${forwardedHost}${next}`);
       } else {
         return NextResponse.redirect(`${origin}${next}`);

@@ -1,13 +1,22 @@
-const ALLOWED_DOMAIN = process.env.ALLOWED_EMAIL_DOMAIN || "mcrpathways.org";
+const STAFF_DOMAIN = process.env.ALLOWED_EMAIL_DOMAIN || "mcrpathways.org";
+
+export function isStaffEmail(email: string): boolean {
+  return email.toLowerCase().endsWith(`@${STAFF_DOMAIN}`);
+}
 
 export function isAllowedEmail(email: string): boolean {
-  // Bypass domain check in development
+  // In development, allow all emails
   if (process.env.NODE_ENV === "development") {
     return true;
   }
-  return email.toLowerCase().endsWith(`@${ALLOWED_DOMAIN}`);
+  // Client-side: be permissive — server validates against partner_domains
+  return true;
 }
 
 export function getEmailDomain(): string {
-  return ALLOWED_DOMAIN;
+  return STAFF_DOMAIN;
+}
+
+export function getEmailDomainPart(email: string): string {
+  return email.split("@")[1]?.toLowerCase() ?? "";
 }

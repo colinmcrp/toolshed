@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { isStaffEmail, getEmailDomainPart } from "@/lib/auth";
+import { isAllowedEmail } from "@/lib/auth";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -17,6 +17,15 @@ export async function GET(request: Request) {
         data: { user },
       } = await supabase.auth.getUser();
       if (user) {
+        const email = user.email ?? "";
+
+        if (!isAllowedEmail(email)) {
+          console.error(`Unauthorized domain for email: ${email}`);
+          return NextResponse.redirect(
+            `${origin}/login?error=unauthorized_domain`
+          );
+        }
+
         const { data: existingProfile } = await supabase
           .from("profiles")
           .select("id")
@@ -24,8 +33,6 @@ export async function GET(request: Request) {
           .single();
 
         if (!existingProfile) {
-          // Determine role and partner_id from email domain
-          const email = user.email ?? "";
           const fullName =
             user.user_metadata?.full_name ||
             user.user_metadata?.name ||
@@ -36,41 +43,10 @@ export async function GET(request: Request) {
               .join(" ") ||
             null;
 
-          let role: "staff" | "partner" | null = null;
-          let partnerId: string | null = null;
-
-          if (isStaffEmail(email)) {
-            role = "staff";
-          } else {
-            // Check if this is a partner domain
-            const domain = getEmailDomainPart(email);
-            if (domain) {
-              const { data: partnerDomain } = await supabase
-                .from("partner_domains")
-                .select("partner_id")
-                .eq("domain", domain)
-                .single();
-
-              if (partnerDomain) {
-                role = "partner";
-                partnerId = partnerDomain.partner_id;
-              }
-            }
-          }
-
-          if (!role) {
-            // Unrecognized domain — do not create a profile
-            console.error(`Unauthorized domain for email: ${email}`);
-            return NextResponse.redirect(
-              `${origin}/login?error=unauthorized_domain`
-            );
-          }
-
           await supabase.from("profiles").insert({
             id: user.id,
             full_name: fullName,
-            role,
-            partner_id: partnerId,
+            role: "staff",
           });
         }
       }

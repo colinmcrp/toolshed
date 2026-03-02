@@ -48,7 +48,7 @@ export default function LoginPage() {
     setIsLoading(true);
     setError(null);
 
-    // Validate email against server (checks staff domain + partner_domains)
+    // Validate email against server
     try {
       const validateRes = await fetch("/api/auth/validate-email", {
         method: "POST",
@@ -59,7 +59,7 @@ export default function LoginPage() {
 
       if (!validation.allowed) {
         setError(
-          "This email address is not associated with MCR Pathways or an approved partner organisation."
+          "Only @mcrpathways.org email addresses are allowed."
         );
         setIsLoading(false);
         return;
@@ -141,7 +141,7 @@ export default function LoginPage() {
           </div>
           <CardTitle className="text-2xl">Welcome to MCR Pathways</CardTitle>
           <CardDescription>
-            Sign in with your MCR Pathways or partner organisation email
+            Sign in with your MCR Pathways email
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -156,7 +156,7 @@ export default function LoginPage() {
                     <FormControl>
                       <Input
                         type="email"
-                        placeholder="you@organisation.org"
+                        placeholder="you@mcrpathways.org"
                         autoComplete="email"
                         {...field}
                       />

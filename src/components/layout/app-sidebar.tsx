@@ -1,9 +1,8 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, User, LogOut, Handshake, Building2 } from "lucide-react";
+import { Home, User, LogOut, Lock } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import {
@@ -27,35 +26,24 @@ interface AppSidebarProps {
       full_name?: string;
     };
   } | null;
-  userRole?: "staff" | "manager" | "admin" | "partner";
 }
 
-const staffNavItems = [
+const navItems = [
   {
     title: "Home",
     url: "/",
     icon: Home,
   },
   {
-    title: "Partnerships",
-    url: "/partnerships",
-    icon: Handshake,
+    title: "Secure ZIP",
+    url: "/secure-zip",
+    icon: Lock,
   },
 ];
 
-const partnerNavItems = [
-  {
-    title: "My Portal",
-    url: "/partnerships/portal",
-    icon: Building2,
-  },
-];
-
-export function AppSidebar({ user, userRole = "staff" }: AppSidebarProps) {
+export function AppSidebar({ user }: AppSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
-
-  const navItems = userRole === "partner" ? partnerNavItems : staffNavItems;
 
   const handleSignOut = async () => {
     const supabase = createClient();
@@ -80,20 +68,15 @@ export function AppSidebar({ user, userRole = "staff" }: AppSidebarProps) {
     <Sidebar>
       <SidebarHeader className="border-b border-sidebar-border">
         <Link href="/" className="flex items-center gap-2 px-2 py-3">
-          <Image
-            src="/MCR_LOGO.svg"
-            alt="MCR Pathways"
-            width={134}
-            height={40}
-            className="brightness-0 invert"
-            priority
-          />
+          <span className="text-lg font-bold text-sidebar-foreground">
+            The Tool Shed
+          </span>
         </Link>
       </SidebarHeader>
 
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+          <SidebarGroupLabel>Tools</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {navItems.map((item) => (

@@ -1,5 +1,4 @@
-import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/layout/app-sidebar";
+import { Header } from "@/components/layout/header";
 import { getUser } from "@/lib/supabase/server";
 import { Toaster } from "@/components/ui/sonner";
 
@@ -11,10 +10,10 @@ export default async function DashboardLayout({
   const user = await getUser();
 
   return (
-    <SidebarProvider>
-      <AppSidebar user={user} />
-      <SidebarInset>{children}</SidebarInset>
+    <div className="flex min-h-svh flex-col">
+      <Header user={user} />
+      <main className="flex-1 overflow-auto p-6">{children}</main>
       <Toaster />
-    </SidebarProvider>
+    </div>
   );
 }

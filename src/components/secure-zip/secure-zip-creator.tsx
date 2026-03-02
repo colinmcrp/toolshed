@@ -420,7 +420,7 @@ export function SecureZipCreator() {
           <button
             type="button"
             onClick={() => setEncryptionMethod("aes256")}
-            disabled={state === "processing"}
+            disabled={state === "processing" || state === "done"}
             className={`rounded-lg border p-3 text-left transition-all ${
               encryptionMethod === "aes256"
                 ? "border-emerald-500 bg-emerald-500/5"
@@ -443,7 +443,7 @@ export function SecureZipCreator() {
           <button
             type="button"
             onClick={() => setEncryptionMethod("zipcrypto")}
-            disabled={state === "processing"}
+            disabled={state === "processing" || state === "done"}
             className={`rounded-lg border p-3 text-left transition-all ${
               encryptionMethod === "zipcrypto"
                 ? "border-emerald-500 bg-emerald-500/5"

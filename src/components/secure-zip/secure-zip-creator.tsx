@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, useMemo } from "react";
+import { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import {
   Upload,
   FileText,
@@ -21,25 +21,38 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
+function getRandomChar(charset: string): string {
+  const randomValues = new Uint32Array(1);
+  const limit = 0xffffffff - (0xffffffff % charset.length);
+  let randomValue: number;
+  do {
+    crypto.getRandomValues(randomValues);
+    randomValue = randomValues[0];
+  } while (randomValue >= limit);
+  return charset[randomValue % charset.length];
+}
+
 function generatePassword(length = 16): string {
   const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
   const lower = "abcdefghjkmnpqrstuvwxyz";
   const digits = "23456789";
   const symbols = "!@#$%&*?";
   const all = upper + lower + digits + symbols;
-  const array = new Uint8Array(length);
-  crypto.getRandomValues(array);
+
   const picks = [
-    upper[array[0] % upper.length],
-    lower[array[1] % lower.length],
-    digits[array[2] % digits.length],
-    symbols[array[3] % symbols.length],
+    getRandomChar(upper),
+    getRandomChar(lower),
+    getRandomChar(digits),
+    getRandomChar(symbols),
   ];
   for (let i = 4; i < length; i++) {
-    picks.push(all[array[i] % all.length]);
+    picks.push(getRandomChar(all));
   }
+  // Shuffle to randomize placement of guaranteed characters
+  const shuffleBytes = new Uint8Array(length);
+  crypto.getRandomValues(shuffleBytes);
   for (let i = picks.length - 1; i > 0; i--) {
-    const j = array[i % array.length] % (i + 1);
+    const j = shuffleBytes[i] % (i + 1);
     [picks[i], picks[j]] = [picks[j], picks[i]];
   }
   return picks.join("");
@@ -91,6 +104,15 @@ export function SecureZipCreator() {
   const strength = useMemo(() => getPasswordStrength(password), [password]);
   const canCreate = files.length > 0 && password.length >= 8;
 
+  // Revoke object URL on change or unmount to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      if (downloadUrl) {
+        URL.revokeObjectURL(downloadUrl);
+      }
+    };
+  }, [downloadUrl]);
+
   const addFiles = useCallback((newFiles: FileList | File[]) => {
     const arr = Array.from(newFiles);
     setFiles((prev) => {
@@ -132,9 +154,9 @@ export function SecureZipCreator() {
     setDownloadUrl(null);
 
     try {
-      const { BlobWriter, BlobReader, ZipWriter } = await import(
-        "@zip.js/zip.js"
-      );
+      const zip = await import("@zip.js/zip.js");
+      zip.configure({ useWebWorkers: true });
+      const { BlobWriter, BlobReader, ZipWriter } = zip;
 
       const blobWriter = new BlobWriter("application/zip");
       const zipWriter = new ZipWriter(blobWriter, {
@@ -176,7 +198,6 @@ export function SecureZipCreator() {
   };
 
   const reset = () => {
-    if (downloadUrl) URL.revokeObjectURL(downloadUrl);
     setFiles([]);
     setPassword(generatePassword());
     setState("idle");

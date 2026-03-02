@@ -137,6 +137,16 @@ function makeUniqueZipEntryName(filename: string, usedNames: Set<string>): strin
 
 type AppState = "idle" | "processing" | "done" | "error";
 
+type EncryptionMethodOptionProps = {
+  method: EncryptionMethod;
+  label: string;
+  badge: { text: string; className: string };
+  description: string;
+  currentMethod: EncryptionMethod;
+  onClick: (method: EncryptionMethod) => void;
+  disabled: boolean;
+};
+
 function EncryptionMethodOption({
   method,
   label,
@@ -145,18 +155,12 @@ function EncryptionMethodOption({
   currentMethod,
   onClick,
   disabled,
-}: {
-  method: EncryptionMethod;
-  label: string;
-  badge: { text: string; className: string };
-  description: string;
-  currentMethod: EncryptionMethod;
-  onClick: (method: EncryptionMethod) => void;
-  disabled: boolean;
-}) {
+}: EncryptionMethodOptionProps) {
   const isSelected = currentMethod === method;
   return (
     <button
+      role="radio"
+      aria-checked={isSelected}
       type="button"
       onClick={() => onClick(method)}
       disabled={disabled}
@@ -459,11 +463,11 @@ export function SecureZipCreator() {
 
       {/* Encryption Method */}
       <div className="space-y-2">
-        <Label className="flex items-center gap-1.5">
+        <Label id="encryption-method-label" className="flex items-center gap-1.5">
           <Shield className="h-3.5 w-3.5" />
           Encryption Method
         </Label>
-        <div className="grid grid-cols-2 gap-2">
+        <div role="radiogroup" aria-labelledby="encryption-method-label" className="grid grid-cols-2 gap-2">
           <EncryptionMethodOption
             method={ENCRYPTION_METHODS.AES256}
             label="AES-256"

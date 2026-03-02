@@ -128,12 +128,14 @@ function makeUniqueZipEntryName(filename: string, usedNames: Set<string>): strin
 }
 
 type AppState = "idle" | "processing" | "done" | "error";
+type EncryptionMethod = "aes256" | "zipcrypto";
 
 export function SecureZipCreator() {
   const [files, setFiles] = useState<File[]>([]);
   const [password, setPassword] = useState(() => generatePassword());
   const [showPassword, setShowPassword] = useState(false);
   const [state, setState] = useState<AppState>("idle");
+  const [encryptionMethod, setEncryptionMethod] = useState<EncryptionMethod>("aes256");
   const [progress, setProgress] = useState("");
   const [error, setError] = useState("");
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
@@ -208,7 +210,9 @@ export function SecureZipCreator() {
       const blobWriter = new BlobWriter("application/zip");
       const zipWriter = new ZipWriter(blobWriter, {
         password,
-        encryptionStrength: 3,
+        ...(encryptionMethod === "aes256"
+          ? { encryptionStrength: 3 }
+          : { zipCrypto: true }),
       });
       const usedEntryNames = new Set<string>();
 
@@ -252,6 +256,7 @@ export function SecureZipCreator() {
   const reset = () => {
     setFiles([]);
     setPassword(generatePassword());
+    setEncryptionMethod("aes256");
     setState("idle");
     setProgress("");
     setError("");
@@ -270,7 +275,7 @@ export function SecureZipCreator() {
           100% Client-Side Encryption
         </Badge>
         <p className="text-sm text-muted-foreground">
-          Encrypt files with AES-256 directly in your browser. Nothing leaves
+          Encrypt files with {encryptionMethod === "aes256" ? "AES-256" : "ZipCrypto"} directly in your browser. Nothing leaves
           your device.
         </p>
       </div>
@@ -405,6 +410,68 @@ export function SecureZipCreator() {
         )}
       </div>
 
+      {/* Encryption Method */}
+      <div className="space-y-2">
+        <Label className="flex items-center gap-1.5">
+          <Shield className="h-3.5 w-3.5" />
+          Encryption Method
+        </Label>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => setEncryptionMethod("aes256")}
+            disabled={state === "processing"}
+            className={`rounded-lg border p-3 text-left transition-all ${
+              encryptionMethod === "aes256"
+                ? "border-emerald-500 bg-emerald-500/5"
+                : "border-border hover:border-muted-foreground/40"
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium">AES-256</span>
+              <Badge
+                variant="secondary"
+                className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] px-1.5 py-0"
+              >
+                Recommended
+              </Badge>
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Strong encryption. Works with 7-Zip, WinZip, and macOS.
+            </p>
+          </button>
+          <button
+            type="button"
+            onClick={() => setEncryptionMethod("zipcrypto")}
+            disabled={state === "processing"}
+            className={`rounded-lg border p-3 text-left transition-all ${
+              encryptionMethod === "zipcrypto"
+                ? "border-emerald-500 bg-emerald-500/5"
+                : "border-border hover:border-muted-foreground/40"
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium">ZipCrypto</span>
+              <Badge
+                variant="secondary"
+                className="text-[10px] px-1.5 py-0"
+              >
+                Legacy
+              </Badge>
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Maximum compatibility. Works with all ZIP tools including older ones.
+            </p>
+          </button>
+        </div>
+        {encryptionMethod === "zipcrypto" && (
+          <div className="flex items-center gap-2 rounded-lg bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+            <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+            ZipCrypto has known vulnerabilities. Use AES-256 for sensitive files.
+          </div>
+        )}
+      </div>
+
       {/* Action */}
       {state === "done" ? (
         <div className="space-y-3">
@@ -455,7 +522,7 @@ export function SecureZipCreator() {
       )}
 
       <p className="text-center text-xs text-muted-foreground">
-        Files are processed entirely in your browser using AES-256 encryption.
+        Files are processed entirely in your browser using {encryptionMethod === "aes256" ? "AES-256" : "ZipCrypto"} encryption.
         No data is transmitted to any server.
       </p>
     </div>

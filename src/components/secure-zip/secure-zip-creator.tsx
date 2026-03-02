@@ -21,6 +21,8 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
+const MIN_PASSWORD_LENGTH = 12;
+
 function getRandomChar(charset: string): string {
   const randomValues = new Uint32Array(1);
   const limit = 0xffffffff - (0xffffffff % charset.length);
@@ -68,7 +70,7 @@ function formatBytes(bytes: number): string {
 
 function getPasswordStrength(pw: string) {
   let score = 0;
-  if (pw.length >= 8) score++;
+  if (pw.length >= MIN_PASSWORD_LENGTH) score++;
   if (pw.length >= 12) score++;
   if (pw.length >= 16) score++;
   if (/[a-z]/.test(pw) && /[A-Z]/.test(pw)) score++;
@@ -84,12 +86,53 @@ function getPasswordStrength(pw: string) {
   return { label: "Strong", color: "bg-emerald-500", width: "w-full" };
 }
 
+function isPasswordPolicySatisfied(pw: string): boolean {
+  return (
+    pw.length >= MIN_PASSWORD_LENGTH &&
+    /[a-z]/.test(pw) &&
+    /[A-Z]/.test(pw) &&
+    /\d/.test(pw) &&
+    /[^a-zA-Z0-9]/.test(pw)
+  );
+}
+
+function sanitizeZipEntryName(filename: string): string {
+  const basename = filename.replace(/\\/g, "/").split("/").pop() ?? "";
+  const sanitized = basename
+    .replace(/[<>:"/\\|?*\u0000-\u001f]/g, "_")
+    .replace(/[. ]+$/g, "")
+    .trim();
+  if (!sanitized || /^\.+$/.test(sanitized)) return "file";
+  return sanitized.slice(0, 255);
+}
+
+function makeUniqueZipEntryName(filename: string, usedNames: Set<string>): string {
+  if (!usedNames.has(filename)) {
+    usedNames.add(filename);
+    return filename;
+  }
+
+  const extIndex = filename.lastIndexOf(".");
+  const hasExt = extIndex > 0;
+  const base = hasExt ? filename.slice(0, extIndex) : filename;
+  const ext = hasExt ? filename.slice(extIndex) : "";
+
+  let counter = 2;
+  let candidate = `${base} (${counter})${ext}`;
+  while (usedNames.has(candidate)) {
+    counter++;
+    candidate = `${base} (${counter})${ext}`;
+  }
+  usedNames.add(candidate);
+  return candidate;
+}
+
 type AppState = "idle" | "processing" | "done" | "error";
 
 export function SecureZipCreator() {
   const [files, setFiles] = useState<File[]>([]);
   const [password, setPassword] = useState(() => generatePassword());
-  const [showPassword, setShowPassword] = useState(true);
+  const [showPassword, setShowPassword] = useState(false);
   const [state, setState] = useState<AppState>("idle");
   const [progress, setProgress] = useState("");
   const [error, setError] = useState("");
@@ -102,7 +145,11 @@ export function SecureZipCreator() {
     [files]
   );
   const strength = useMemo(() => getPasswordStrength(password), [password]);
-  const canCreate = files.length > 0 && password.length >= 8;
+  const passwordPolicySatisfied = useMemo(
+    () => isPasswordPolicySatisfied(password),
+    [password]
+  );
+  const canCreate = files.length > 0 && passwordPolicySatisfied;
 
   // Revoke object URL on change or unmount to prevent memory leaks
   useEffect(() => {
@@ -163,12 +210,17 @@ export function SecureZipCreator() {
         password,
         encryptionStrength: 3,
       });
+      const usedEntryNames = new Set<string>();
 
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         setProgress(`Encrypting ${file.name} (${i + 1}/${files.length})...`);
         const reader = new BlobReader(file);
-        await zipWriter.add(file.name, reader);
+        const entryName = makeUniqueZipEntryName(
+          sanitizeZipEntryName(file.name),
+          usedEntryNames
+        );
+        await zipWriter.add(entryName, reader);
       }
 
       setProgress("Finalizing archive...");
@@ -311,7 +363,7 @@ export function SecureZipCreator() {
               type={showPassword ? "text" : "password"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Min 8 characters"
+              placeholder="Min 12 chars, upper/lower/number/symbol"
               className="pr-10 font-mono text-sm"
               disabled={state === "processing"}
             />
@@ -346,7 +398,8 @@ export function SecureZipCreator() {
             </div>
             <p className="text-xs text-muted-foreground">
               Strength: {strength.label}
-              {password.length < 8 && " — minimum 8 characters required"}
+              {!passwordPolicySatisfied &&
+                " - use 12+ chars with upper, lower, number, and symbol"}
             </p>
           </div>
         )}

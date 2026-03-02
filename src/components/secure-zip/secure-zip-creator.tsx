@@ -11,6 +11,8 @@ import {
   Download,
   Shield,
   RefreshCw,
+  Copy,
+  Check,
   Loader2,
   CheckCircle2,
   AlertCircle,
@@ -185,6 +187,7 @@ export function SecureZipCreator() {
   const [files, setFiles] = useState<File[]>([]);
   const [password, setPassword] = useState(() => generatePassword());
   const [showPassword, setShowPassword] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [state, setState] = useState<AppState>("idle");
   const [encryptionMethod, setEncryptionMethod] = useState<EncryptionMethod>(ENCRYPTION_METHODS.AES256);
   const [progress, setProgress] = useState("");
@@ -443,6 +446,19 @@ export function SecureZipCreator() {
             disabled={state === "processing"}
           >
             <RefreshCw className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => {
+              navigator.clipboard.writeText(password);
+              setCopied(true);
+              setTimeout(() => setCopied(false), 2000);
+            }}
+            title="Copy password"
+            disabled={!password}
+          >
+            {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
           </Button>
         </div>
         {password.length > 0 && (

@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "MCR Pathways",
-  description: "MCR Pathways internal application.",
+  title: "The Tool Shed",
+  description: "Privacy-first browser tools. No uploads, no servers.",
 };
 
 export default function RootLayout({

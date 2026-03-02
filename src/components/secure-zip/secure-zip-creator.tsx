@@ -188,6 +188,13 @@ export function SecureZipCreator() {
   const [password, setPassword] = useState(() => generatePassword());
   const [showPassword, setShowPassword] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (!copied) return;
+    const timer = setTimeout(() => setCopied(false), 2000);
+    return () => clearTimeout(timer);
+  }, [copied]);
+
   const [state, setState] = useState<AppState>("idle");
   const [encryptionMethod, setEncryptionMethod] = useState<EncryptionMethod>(ENCRYPTION_METHODS.AES256);
   const [progress, setProgress] = useState("");
@@ -451,9 +458,9 @@ export function SecureZipCreator() {
             variant="outline"
             size="icon"
             onClick={() => {
-              navigator.clipboard.writeText(password);
-              setCopied(true);
-              setTimeout(() => setCopied(false), 2000);
+              navigator.clipboard.writeText(password)
+                .then(() => setCopied(true))
+                .catch((err) => console.error("Failed to copy password:", err));
             }}
             title="Copy password"
             disabled={!password}

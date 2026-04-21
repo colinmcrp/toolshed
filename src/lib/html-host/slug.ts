@@ -22,6 +22,7 @@ const RESERVED_SLUGS_LIST: readonly string[] = [
   'favicon.ico',
   'html-host',
   'login',
+  'partnerships',
   'profile',
   'public',
   'secure-zip',

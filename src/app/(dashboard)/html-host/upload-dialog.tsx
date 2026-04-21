@@ -83,10 +83,15 @@ export function UploadDialog() {
     setFileError(null);
 
     const isHtml = f.name.toLowerCase().endsWith(".html");
-    const isMimeOk = !f.type || f.type === "text/html";
+    const isZip = f.name.toLowerCase().endsWith(".zip");
+    const isMimeOk =
+      !f.type ||
+      f.type === "text/html" ||
+      f.type === "application/zip" ||
+      f.type === "application/x-zip-compressed";
 
-    if (!isHtml || !isMimeOk) {
-      const msg = "Only .html files are accepted";
+    if ((!isHtml && !isZip) || !isMimeOk) {
+      const msg = "Only .html or .zip files are accepted";
       setFileError(msg);
       toast.error(msg);
       return;
@@ -248,7 +253,8 @@ export function UploadDialog() {
         <DialogHeader>
           <DialogTitle>Upload HTML artifact</DialogTitle>
           <DialogDescription>
-            Single .html file, max 5 MB. Zip bundles coming soon.
+            Single .html file or .zip bundle, max 5 MB. Bundles must contain
+            index.html at the root.
           </DialogDescription>
         </DialogHeader>
 
@@ -261,7 +267,7 @@ export function UploadDialog() {
             <input
               ref={fileInputRef}
               type="file"
-              accept=".html,text/html"
+              accept=".html,.zip,text/html,application/zip"
               className="sr-only"
               tabIndex={-1}
               aria-hidden="true"
@@ -313,7 +319,7 @@ export function UploadDialog() {
                     </span>{" "}
                     or drag &amp; drop
                   </span>
-                  <span className="text-xs">.html only, max 5 MB</span>
+                  <span className="text-xs">.html or .zip, max 5 MB</span>
                 </button>
               </div>
             )}

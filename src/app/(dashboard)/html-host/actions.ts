@@ -4,11 +4,59 @@ import { revalidatePath } from "next/cache";
 import { createClient, getUser } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { validateSlug, suggestSlug } from "@/lib/html-host/slug";
+import {
+  extractArtifactBundle,
+  ZipExtractionError,
+} from "@/lib/html-host/zip";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type { HtmlArtifact } from "@/types/database";
 
 const MAX_BYTES = 5 * 1024 * 1024; // 5 MB (matches bucket + plan)
 const BUCKET = "html-artifacts";
-const ALLOWED_SINGLE_MIME = new Set(["text/html"]); // zip added in task 10
+const ALLOWED_SINGLE_MIME = new Set(["text/html"]);
+const ZIP_MIMES = new Set([
+  "application/zip",
+  "application/x-zip-compressed",
+]);
+
+// ─── Private helper: list all storage objects recursively ────────────────────
+//
+// Supabase Storage's `list()` only returns immediate children. For bundles
+// with nested directories (e.g. `assets/logo.svg`) we must recurse into
+// "folder" entries. Supabase marks folders by returning items with `id === null`.
+//
+// DONE_WITH_CONCERNS: We use `limit: 1000` and do not paginate. In practice
+// artifact bundles are <<1000 files, but this would silently miss files in
+// pathological cases. Acceptable for now.
+
+async function listAllObjectsRecursive(
+  supabase: SupabaseClient,
+  prefix: string
+): Promise<string[]> {
+  const { data: items, error } = await supabase.storage
+    .from(BUCKET)
+    .list(prefix, { limit: 1000 });
+
+  if (error || !items) {
+    return [];
+  }
+
+  const paths: string[] = [];
+
+  for (const item of items) {
+    const fullPath = `${prefix}/${item.name}`;
+    if (item.id === null) {
+      // Folder entry — recurse deeper
+      const nested = await listAllObjectsRecursive(supabase, fullPath);
+      paths.push(...nested);
+    } else {
+      // File entry
+      paths.push(fullPath);
+    }
+  }
+
+  return paths;
+}
 
 // ─── Action 1: checkSlug ──────────────────────────────────────────────────────
 
@@ -104,14 +152,25 @@ export async function createArtifact(
     return { ok: false, error: reasonMap[slugValidation.reason], field: "slug" };
   }
 
-  // Validate file size.
+  // Validate file size (early check before any extraction).
   if (file.size > MAX_BYTES) {
     return { ok: false, error: "File must be 5 MB or smaller", field: "file" };
   }
 
+  // Detect whether this is a zip upload.
+  const effectiveMime = file.type || "";
+  const isZipByMime = ZIP_MIMES.has(effectiveMime);
+  const isZipByExtension = file.name.toLowerCase().endsWith(".zip");
+  const isZip = isZipByMime || (effectiveMime === "" && isZipByExtension);
+
+  if (isZip) {
+    return createBundleArtifact({ user, slug, file });
+  }
+
+  // ── Single-file HTML path ─────────────────────────────────────────────────
+
   // Validate MIME type. Browsers sometimes report "" for file.type;
   // treat that as OK only if the filename ends in ".html".
-  const effectiveMime = file.type || "";
   const isHtmlByExtension = file.name.toLowerCase().endsWith(".html");
   if (effectiveMime === "") {
     if (!isHtmlByExtension) {
@@ -204,6 +263,139 @@ export async function createArtifact(
   return { ok: true, slug, url: `/${slug}.html` };
 }
 
+// ─── Private: bundle upload path ─────────────────────────────────────────────
+
+async function createBundleArtifact({
+  user,
+  slug,
+  file,
+}: {
+  user: { id: string };
+  slug: string;
+  file: File;
+}): Promise<
+  | { ok: true; slug: string; url: string }
+  | { ok: false; error: string; field?: "slug" | "file" }
+> {
+  // Extract and validate the zip bundle.
+  let bundle: Awaited<ReturnType<typeof extractArtifactBundle>>;
+  try {
+    bundle = await extractArtifactBundle(file, MAX_BYTES);
+  } catch (err) {
+    if (err instanceof ZipExtractionError) {
+      const messageMap: Record<string, string> = {
+        "empty-zip": "The zip archive is empty.",
+        "missing-index-html": "The bundle must contain index.html at the root.",
+        "path-traversal":
+          "The zip contains an unsafe path (..) and cannot be accepted.",
+        "absolute-path":
+          "The zip contains an absolute path and cannot be accepted.",
+        "size-exceeded": "Uncompressed bundle size exceeds 5 MB.",
+        "invalid-zip": "Could not read the zip file.",
+      };
+      const message = messageMap[err.code] ?? "Could not extract the bundle.";
+      return { ok: false, error: message, field: "file" };
+    }
+    console.error("[createBundleArtifact] Unexpected extraction error:", err);
+    return { ok: false, error: "Could not extract the bundle.", field: "file" };
+  }
+
+  // Cross-user slug uniqueness check via service client (bypasses RLS).
+  const serviceClient = createServiceClient();
+  try {
+    const { data: existing } = await serviceClient
+      .from("html_artifacts")
+      .select("id")
+      .eq("slug", slug)
+      .maybeSingle();
+
+    if (existing) {
+      return { ok: false, error: "That slug is taken", field: "slug" };
+    }
+  } catch (err) {
+    console.error("[createBundleArtifact] Slug uniqueness check failed:", err);
+    return { ok: false, error: "Could not verify slug availability" };
+  }
+
+  // Insert the DB row.
+  const supabase = await createClient();
+
+  const { data: inserted, error: insertError } = await supabase
+    .from("html_artifacts")
+    .insert({
+      slug,
+      owner_id: user.id,
+      is_bundle: true,
+      entry_path: "index.html",
+      size_bytes: bundle.totalBytes,
+      mime_type: "application/zip",
+      original_name: file.name,
+    })
+    .select("id")
+    .single();
+
+  if (insertError || !inserted) {
+    console.error("[createBundleArtifact] DB insert failed:", insertError);
+    return { ok: false, error: "Failed to create artifact record" };
+  }
+
+  const { id } = inserted;
+
+  // Upload each entry sequentially to preserve ordered error handling.
+  const uploadedPaths: string[] = [];
+  for (const entry of bundle.entries) {
+    const storagePath = `${id}/${entry.path}`;
+    const { error: uploadError } = await supabase.storage
+      .from(BUCKET)
+      .upload(storagePath, entry.data, {
+        contentType: entry.mimeType,
+        upsert: false,
+      });
+
+    if (uploadError) {
+      console.error(
+        "[createBundleArtifact] Upload failed for entry:",
+        entry.path,
+        uploadError
+      );
+
+      // Best-effort cleanup: remove any already-uploaded objects.
+      const allPaths = await listAllObjectsRecursive(supabase, id);
+      if (allPaths.length > 0) {
+        const { error: removeError } = await supabase.storage
+          .from(BUCKET)
+          .remove(allPaths);
+        if (removeError) {
+          console.error(
+            "[createBundleArtifact] Partial storage cleanup failed:",
+            removeError
+          );
+        }
+      }
+
+      // Rollback DB row.
+      const { error: rollbackError } = await supabase
+        .from("html_artifacts")
+        .delete()
+        .eq("id", id);
+      if (rollbackError) {
+        console.error(
+          "[createBundleArtifact] DB rollback failed — orphaned row:",
+          id,
+          rollbackError
+        );
+      }
+
+      return { ok: false, error: "Upload failed for one or more files" };
+    }
+
+    uploadedPaths.push(storagePath);
+  }
+
+  revalidatePath("/html-host");
+  return { ok: true, slug, url: `/${slug}/` };
+}
+
 // ─── Action 3: listMyArtifacts ────────────────────────────────────────────────
 
 export async function listMyArtifacts(): Promise<HtmlArtifact[]> {
@@ -262,23 +454,15 @@ export async function deleteArtifact(
     return { ok: false, error: "Not found" };
   }
 
-  // List and remove all storage objects under `<id>/` before deleting the DB row.
+  // Recursively list all storage objects under `<id>/` before deleting the DB row.
   // Order matters: storage first so the better failure mode is an orphaned DB row
   // (user can retry) rather than an orphaned storage object (no UI path to clean up).
-  const { data: objects, error: listError } = await supabase.storage
-    .from(BUCKET)
-    .list(id);
+  const allPaths = await listAllObjectsRecursive(supabase, id);
 
-  if (listError) {
-    console.error("[deleteArtifact] Storage list failed:", listError);
-    return { ok: false, error: "Failed to list artifact files" };
-  }
-
-  if (objects && objects.length > 0) {
-    const objectPaths = objects.map((obj) => `${id}/${obj.name}`);
+  if (allPaths.length > 0) {
     const { error: removeError } = await supabase.storage
       .from(BUCKET)
-      .remove(objectPaths);
+      .remove(allPaths);
 
     if (removeError) {
       console.error("[deleteArtifact] Storage remove failed:", removeError);

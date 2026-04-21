@@ -7,6 +7,7 @@ import { validateSlug, suggestSlug } from "@/lib/html-host/slug";
 import {
   extractArtifactBundle,
   ZipExtractionError,
+  type ExtractedEntry,
 } from "@/lib/html-host/zip";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { HtmlArtifact } from "@/types/database";
@@ -263,6 +264,40 @@ export async function createArtifact(
   return { ok: true, slug, url: `/${slug}.html` };
 }
 
+// ─── Private: bounded-concurrency bundle uploader ────────────────────────────
+
+const CONCURRENCY = 5;
+
+async function uploadBundleEntries(
+  supabase: SupabaseClient,
+  id: string,
+  entries: ExtractedEntry[],
+): Promise<Error | null> {
+  let index = 0;
+  let firstError: Error | null = null;
+
+  async function worker() {
+    while (firstError === null) {
+      const i = index++;
+      if (i >= entries.length) return;
+      const entry = entries[i];
+      const { error } = await supabase.storage
+        .from(BUCKET)
+        .upload(`${id}/${entry.path}`, entry.data, {
+          contentType: entry.mimeType,
+          upsert: false,
+        });
+      if (error) {
+        firstError = firstError ?? error;
+        return;
+      }
+    }
+  }
+
+  await Promise.all(Array.from({ length: CONCURRENCY }, () => worker()));
+  return firstError;
+}
+
 // ─── Private: bundle upload path ─────────────────────────────────────────────
 
 async function createBundleArtifact({
@@ -341,62 +376,50 @@ async function createBundleArtifact({
 
   const { id } = inserted;
 
-  // Upload each entry sequentially to preserve ordered error handling.
-  const uploadedPaths: string[] = [];
-  for (const entry of bundle.entries) {
-    const storagePath = `${id}/${entry.path}`;
-    const { error: uploadError } = await supabase.storage
-      .from(BUCKET)
-      .upload(storagePath, entry.data, {
-        contentType: entry.mimeType,
-        upsert: false,
-      });
+  // Upload all bundle entries with bounded concurrency (up to CONCURRENCY at a time).
+  const uploadError = await uploadBundleEntries(supabase, id, bundle.entries);
 
-    if (uploadError) {
-      console.error(
-        "[createBundleArtifact] Upload failed for entry:",
-        entry.path,
-        uploadError
-      );
+  if (uploadError) {
+    console.error(
+      "[createBundleArtifact] Upload failed:",
+      uploadError
+    );
 
-      // Best-effort cleanup: remove any already-uploaded objects.
-      try {
-        const allPaths = await listAllObjectsRecursive(supabase, id);
-        if (allPaths.length > 0) {
-          const { error: removeError } = await supabase.storage
-            .from(BUCKET)
-            .remove(allPaths);
-          if (removeError) {
-            console.error(
-              "[createBundleArtifact] Partial storage cleanup failed:",
-              removeError
-            );
-          }
+    // Best-effort cleanup: remove any already-uploaded objects.
+    try {
+      const allPaths = await listAllObjectsRecursive(supabase, id);
+      if (allPaths.length > 0) {
+        const { error: removeError } = await supabase.storage
+          .from(BUCKET)
+          .remove(allPaths);
+        if (removeError) {
+          console.error(
+            "[createBundleArtifact] Partial storage cleanup failed:",
+            removeError
+          );
         }
-      } catch (listErr) {
-        console.error(
-          "[createBundleArtifact] Partial storage cleanup list failed — files may be orphaned:",
-          listErr
-        );
       }
-
-      // Rollback DB row.
-      const { error: rollbackError } = await supabase
-        .from("html_artifacts")
-        .delete()
-        .eq("id", id);
-      if (rollbackError) {
-        console.error(
-          "[createBundleArtifact] DB rollback failed — orphaned row:",
-          id,
-          rollbackError
-        );
-      }
-
-      return { ok: false, error: "Upload failed for one or more files" };
+    } catch (listErr) {
+      console.error(
+        "[createBundleArtifact] Partial storage cleanup list failed — files may be orphaned:",
+        listErr
+      );
     }
 
-    uploadedPaths.push(storagePath);
+    // Rollback DB row.
+    const { error: rollbackError } = await supabase
+      .from("html_artifacts")
+      .delete()
+      .eq("id", id);
+    if (rollbackError) {
+      console.error(
+        "[createBundleArtifact] DB rollback failed — orphaned row:",
+        id,
+        rollbackError
+      );
+    }
+
+    return { ok: false, error: "Upload failed for one or more files" };
   }
 
   revalidatePath("/html-host");

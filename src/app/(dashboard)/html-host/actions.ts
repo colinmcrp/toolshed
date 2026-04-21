@@ -37,13 +37,13 @@ async function listAllObjectsRecursive(
     .from(BUCKET)
     .list(prefix, { limit: 1000 });
 
-  if (error || !items) {
-    return [];
+  if (error) {
+    throw new Error(`Failed to list ${prefix}: ${error.message}`, { cause: error });
   }
 
   const paths: string[] = [];
 
-  for (const item of items) {
+  for (const item of (items ?? [])) {
     const fullPath = `${prefix}/${item.name}`;
     if (item.id === null) {
       // Folder entry — recurse deeper
@@ -360,17 +360,24 @@ async function createBundleArtifact({
       );
 
       // Best-effort cleanup: remove any already-uploaded objects.
-      const allPaths = await listAllObjectsRecursive(supabase, id);
-      if (allPaths.length > 0) {
-        const { error: removeError } = await supabase.storage
-          .from(BUCKET)
-          .remove(allPaths);
-        if (removeError) {
-          console.error(
-            "[createBundleArtifact] Partial storage cleanup failed:",
-            removeError
-          );
+      try {
+        const allPaths = await listAllObjectsRecursive(supabase, id);
+        if (allPaths.length > 0) {
+          const { error: removeError } = await supabase.storage
+            .from(BUCKET)
+            .remove(allPaths);
+          if (removeError) {
+            console.error(
+              "[createBundleArtifact] Partial storage cleanup failed:",
+              removeError
+            );
+          }
         }
+      } catch (listErr) {
+        console.error(
+          "[createBundleArtifact] Partial storage cleanup list failed — files may be orphaned:",
+          listErr
+        );
       }
 
       // Rollback DB row.
@@ -457,7 +464,13 @@ export async function deleteArtifact(
   // Recursively list all storage objects under `<id>/` before deleting the DB row.
   // Order matters: storage first so the better failure mode is an orphaned DB row
   // (user can retry) rather than an orphaned storage object (no UI path to clean up).
-  const allPaths = await listAllObjectsRecursive(supabase, id);
+  let allPaths: string[];
+  try {
+    allPaths = await listAllObjectsRecursive(supabase, id);
+  } catch (err) {
+    console.error("[deleteArtifact] Failed to list artifact files:", err);
+    return { ok: false, error: "Failed to list artifact files" };
+  }
 
   if (allPaths.length > 0) {
     const { error: removeError } = await supabase.storage

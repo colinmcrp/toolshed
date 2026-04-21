@@ -1,9 +1,9 @@
 import { Upload } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { listMyArtifacts } from "./actions";
 import { ArtifactRow } from "./artifact-row";
 import { formatBytes } from "@/lib/html-host/format";
+import { UploadDialog } from "./upload-dialog";
 
 export default async function HtmlHostPage() {
   const artifacts = await listMyArtifacts();
@@ -25,11 +25,7 @@ export default async function HtmlHostPage() {
           </p>
         </div>
 
-        {/* TODO: wire to Task 9 dialog */}
-        <Button disabled className="shrink-0">
-          <Upload className="h-4 w-4" />
-          New upload
-        </Button>
+        <UploadDialog />
       </div>
 
       {/* Content */}

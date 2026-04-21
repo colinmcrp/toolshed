@@ -370,6 +370,42 @@ export type Database = {
           }
         ];
       };
+      html_artifacts: {
+        Row: {
+          id: string;
+          slug: string;
+          owner_id: string;
+          is_bundle: boolean;
+          entry_path: string;
+          size_bytes: number;
+          mime_type: string;
+          original_name: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          slug: string;
+          owner_id: string;
+          is_bundle?: boolean;
+          entry_path?: string;
+          size_bytes: number;
+          mime_type: string;
+          original_name?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          slug?: string;
+          owner_id?: string;
+          is_bundle?: boolean;
+          entry_path?: string;
+          size_bytes?: number;
+          mime_type?: string;
+          original_name?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       [_ in never]: never;
@@ -404,3 +440,7 @@ export type TaskUpdate = Database["public"]["Tables"]["tasks"]["Update"];
 export type DocumentRecord = Database["public"]["Tables"]["documents"]["Row"];
 export type CommitmentRecord = Database["public"]["Tables"]["commitments"]["Row"];
 export type GoalRecord = Database["public"]["Tables"]["goals"]["Row"];
+
+// HTML Host types
+export type HtmlArtifact = Database["public"]["Tables"]["html_artifacts"]["Row"];
+export type HtmlArtifactInsert = Database["public"]["Tables"]["html_artifacts"]["Insert"];

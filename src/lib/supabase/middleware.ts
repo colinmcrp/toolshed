@@ -1,5 +1,15 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { RESERVED_SLUGS } from "@/lib/html-host/slug";
+
+function isArtifactUrl(pathname: string): boolean {
+  if (pathname === '/') return false;
+  const first = pathname.split('/')[1];
+  if (!first) return false;
+  // Strip .html suffix if present so 'foo.html' maps to 'foo' for reservation check
+  const firstNoExt = first.endsWith('.html') ? first.slice(0, -5) : first;
+  return !RESERVED_SLUGS.has(firstNoExt) && !RESERVED_SLUGS.has(first);
+}
 
 export async function updateSession(request: NextRequest) {
   // Skip auth in development
@@ -49,7 +59,7 @@ export async function updateSession(request: NextRequest) {
   );
   const isApiRoute = request.nextUrl.pathname.startsWith("/api/");
 
-  if (!user && !isPublicRoute && !isApiRoute) {
+  if (!user && !isPublicRoute && !isApiRoute && !isArtifactUrl(request.nextUrl.pathname)) {
     // No user and trying to access protected route, redirect to login
     const url = request.nextUrl.clone();
     url.pathname = "/login";
@@ -68,7 +78,7 @@ export async function updateSession(request: NextRequest) {
   }
 
   // Role-based access: restrict partner users to allowed routes
-  if (user && !isPublicRoute && !isApiRoute) {
+  if (user && !isPublicRoute && !isApiRoute && !isArtifactUrl(request.nextUrl.pathname)) {
     const { data: profile } = await supabase
       .from("profiles")
       .select("role")

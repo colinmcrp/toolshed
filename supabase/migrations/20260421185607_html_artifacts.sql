@@ -5,6 +5,7 @@
 create table public.html_artifacts (
   id            uuid        primary key default gen_random_uuid(),
   slug          text        not null unique
+                              -- 3-64 chars: [a-z0-9] bookends + 1-62 interior chars (letters/digits/hyphen)
                               constraint html_artifacts_slug_format
                               check (slug ~ '^[a-z0-9][a-z0-9-]{1,62}[a-z0-9]$'),
   owner_id      uuid        not null references auth.users(id) on delete cascade,

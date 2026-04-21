@@ -40,6 +40,7 @@ export function formatRelative(iso: string): string {
     return `${diffDays} day${diffDays === 1 ? "" : "s"} ago`;
   }
 
-  // Fallback to locale date string for older dates
-  return new Date(iso).toLocaleDateString();
+  // Fallback to locale date string for older dates.
+  // Pin to en-GB so server and client produce the same output (avoids SSR hydration mismatch).
+  return new Date(iso).toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: 'numeric' });
 }

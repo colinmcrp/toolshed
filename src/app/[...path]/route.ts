@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import mime from "mime-types";
 import { createServiceClient } from "@/lib/supabase/service";
 
-const NOT_FOUND = new NextResponse("Not found", { status: 404 });
+const notFound = () => new NextResponse("Not found", { status: 404 });
 
 export async function GET(
   _req: Request,
@@ -11,9 +11,9 @@ export async function GET(
   const { path } = await params;
 
   // Defensive: reject empty segments or path traversal attempts
-  if (!path || path.length === 0) return NOT_FOUND;
+  if (!path || path.length === 0) return notFound();
   for (const segment of path) {
-    if (segment === "" || segment.includes("..")) return NOT_FOUND;
+    if (segment === "" || segment.includes("..")) return notFound();
   }
 
   // ── URL shape resolution ────────────────────────────────────────────────────
@@ -40,13 +40,13 @@ export async function GET(
     .eq("slug", slug)
     .maybeSingle();
 
-  if (error || !artifact) return NOT_FOUND;
+  if (error || !artifact) return notFound();
 
   // ── Shape enforcement ───────────────────────────────────────────────────────
   // Single-file URL shape requires a non-bundle artifact
-  if (isSingleFile && artifact.is_bundle) return NOT_FOUND;
+  if (isSingleFile && artifact.is_bundle) return notFound();
   // Bundle URL shape requires a bundle artifact
-  if (!isSingleFile && !artifact.is_bundle) return NOT_FOUND;
+  if (!isSingleFile && !artifact.is_bundle) return notFound();
 
   // ── Storage key resolution ──────────────────────────────────────────────────
   let storageKey: string;
@@ -66,7 +66,7 @@ export async function GET(
     .from("html-artifacts")
     .download(storageKey);
 
-  if (storageError || !blob) return NOT_FOUND;
+  if (storageError || !blob) return notFound();
 
   // ── Determine MIME type ─────────────────────────────────────────────────────
   // Use the resolved file path for MIME lookup (assetPath, entry_path, or index.html)

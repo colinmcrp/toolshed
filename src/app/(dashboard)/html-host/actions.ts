@@ -12,7 +12,7 @@ import {
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { HtmlArtifact } from "@/types/database";
 
-const MAX_BYTES = 5 * 1024 * 1024; // 5 MB (matches bucket + plan)
+const MAX_BYTES = 6 * 1024 * 1024; // 6 MB (matches bucket + plan)
 const BUCKET = "html-artifacts";
 const ALLOWED_SINGLE_MIME = new Set(["text/html"]);
 const ZIP_MIMES = new Set([

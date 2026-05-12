@@ -16,8 +16,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { createClient as createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { formatBytes } from "@/lib/html-host/format";
-import { checkSlug, createArtifact } from "./actions";
+import {
+  checkSlug,
+  prepareArtifactUpload,
+  finalizeArtifactUpload,
+  deleteArtifact,
+} from "./actions";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -98,7 +104,7 @@ export function UploadDialog() {
     }
 
     if (f.size > MAX_BYTES) {
-      const msg = `File is too large (${formatBytes(f.size)}). Max 5 MB.`;
+      const msg = `File is too large (${formatBytes(f.size)}). Max 6 MB.`;
       setFileError(msg);
       toast.error(msg);
       return;
@@ -200,42 +206,72 @@ export function UploadDialog() {
 
     setSubmitting(true);
 
-    const formData = new FormData();
-    formData.set("file", file);
-    formData.set("slug", slug);
+    const isZip = file.name.toLowerCase().endsWith(".zip");
+    const kind: "html" | "zip" = isZip ? "zip" : "html";
 
-    const result = await createArtifact(formData);
+    // Step 1: claim the slug and get a signed upload URL.
+    const prep = await prepareArtifactUpload({
+      slug,
+      kind,
+      originalName: file.name,
+      declaredSize: file.size,
+    });
 
-    if (result.ok) {
-      const absoluteUrl = `${window.location.origin}${result.url}`;
-      setOpen(false);
-      resetState();
-      toast.success("Upload successful!", {
-        description: result.url,
-        action: {
-          label: "Copy link",
-          onClick: () => {
-            navigator.clipboard.writeText(absoluteUrl).then(
-              () => toast.success("Link copied"),
-              () => toast.info(`Link: ${absoluteUrl}`)
-            );
-          },
-        },
+    if (!prep.ok) {
+      setSubmitting(false);
+      toast.error(prep.error);
+      if (prep.field === "slug") {
+        setSlugStatus({ state: "unavailable", reason: prep.error });
+      } else if (prep.field === "file") {
+        setFileError(prep.error);
+      }
+      return;
+    }
+
+    // Step 2: upload the file straight to Supabase Storage. Bypasses Vercel's
+    // 4.5 MB request-body limit on Server Actions.
+    const supabase = createBrowserSupabaseClient();
+    const { error: uploadError } = await supabase.storage
+      .from(prep.bucket)
+      .uploadToSignedUrl(prep.uploadPath, prep.uploadToken, file, {
+        contentType: isZip ? "application/zip" : "text/html",
+        upsert: false,
       });
-      router.refresh();
-    } else {
+
+    if (uploadError) {
+      console.error("[upload] uploadToSignedUrl failed:", uploadError);
+      // Roll back the reserved row so the slug isn't permanently stuck.
+      void deleteArtifact(prep.id);
+      setSubmitting(false);
+      toast.error(uploadError.message || "Upload failed");
+      return;
+    }
+
+    // Step 3: finalize — for zip bundles this runs server-side extraction.
+    const result = await finalizeArtifactUpload({ id: prep.id });
+
+    if (!result.ok) {
       setSubmitting(false);
       toast.error(result.error);
-
-      if (result.field === "slug") {
-        setSlugStatus({
-          state: "unavailable",
-          reason: result.error,
-        });
-      } else if (result.field === "file") {
-        setFileError(result.error);
-      }
+      return;
     }
+
+    const absoluteUrl = `${window.location.origin}${result.url}`;
+    setOpen(false);
+    resetState();
+    toast.success("Upload successful!", {
+      description: result.url,
+      action: {
+        label: "Copy link",
+        onClick: () => {
+          navigator.clipboard.writeText(absoluteUrl).then(
+            () => toast.success("Link copied"),
+            () => toast.info(`Link: ${absoluteUrl}`)
+          );
+        },
+      },
+    });
+    router.refresh();
   }
 
   // ─── Render ────────────────────────────────────────────────────────────────
@@ -253,7 +289,7 @@ export function UploadDialog() {
         <DialogHeader>
           <DialogTitle>Upload HTML artifact</DialogTitle>
           <DialogDescription>
-            Single .html file or .zip bundle, max 5 MB. Bundles must contain
+            Single .html file or .zip bundle, max 6 MB. Bundles must contain
             index.html at the root.
           </DialogDescription>
         </DialogHeader>
@@ -319,7 +355,7 @@ export function UploadDialog() {
                     </span>{" "}
                     or drag &amp; drop
                   </span>
-                  <span className="text-xs">.html or .zip, max 5 MB</span>
+                  <span className="text-xs">.html or .zip, max 6 MB</span>
                 </button>
               </div>
             )}

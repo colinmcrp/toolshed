@@ -21,7 +21,7 @@ import { checkSlug, createArtifact } from "./actions";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const MAX_BYTES = 5 * 1024 * 1024; // 5 MB
+const MAX_BYTES = 6 * 1024 * 1024; // 6 MB
 
 // ─── Slug validation status type ─────────────────────────────────────────────
 

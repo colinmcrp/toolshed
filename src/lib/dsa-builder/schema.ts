@@ -57,10 +57,6 @@ export const IntakeSchema = z
   .object({
     jurisdiction: Jurisdiction,
     counterpartyType: CounterpartyType,
-    // When false, the counterparty signatory + witness fields are left as
-    // [insert] placeholders in the generated doc — the counterparty fills
-    // them in by hand at signing time. Default true to preserve the
-    // existing flow where MCR collects signatory details up-front.
     counterpartyWillSign: z.boolean().default(true),
     includeCriminalRecord: z.boolean().default(true),
     includeGroupwork: z.boolean().optional(),

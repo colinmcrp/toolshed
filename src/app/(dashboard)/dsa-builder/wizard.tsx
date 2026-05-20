@@ -8,6 +8,8 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { IntakeSchema, type Intake } from "@/lib/dsa-builder/schema";
+import { todayIso } from "@/lib/dsa-builder/build-context";
+import { MCR_SIGNER_PRESET } from "@/lib/dsa-builder/defaults";
 import { generateAndDownload } from "@/lib/dsa-builder/render";
 import { Stepper } from "./stepper";
 import { Step1Jurisdiction } from "./step1-jurisdiction";
@@ -16,14 +18,6 @@ import { Step3Scope } from "./step3-scope";
 import { Step4McrReview } from "./step4-mcr-review";
 
 type IntakeInput = z.input<typeof IntakeSchema>;
-
-function todayIso(): string {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, "0");
-  const d = String(now.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
 
 function buildDefaultValues(): IntakeInput {
   const today = todayIso();
@@ -57,11 +51,8 @@ function buildDefaultValues(): IntakeInput {
       coveredSchoolsSites: "",
     },
     mcr: {
-      signatoryName: "Sharon McIntyre",
-      signatoryPosition: "Chief Executive Officer",
+      ...MCR_SIGNER_PRESET,
       signatoryDate: today,
-      witnessName: "Colin Adam",
-      witnessPosition: "Head of Solutions",
       witnessDate: today,
     },
   };

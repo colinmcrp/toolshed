@@ -74,13 +74,11 @@ function TextField({ field }: { field: Field }) {
 function Section({
   title,
   description,
-  fields,
   children,
 }: {
   title: string;
   description?: string;
-  fields?: Field[];
-  children?: React.ReactNode;
+  children: React.ReactNode;
 }) {
   return (
     <section className="space-y-3">
@@ -90,15 +88,18 @@ function Section({
           <p className="text-xs text-muted-foreground">{description}</p>
         )}
       </div>
-      {fields && (
-        <div className="grid gap-3 sm:grid-cols-2">
-          {fields.map((f) => (
-            <TextField key={f.name} field={f} />
-          ))}
-        </div>
-      )}
       {children}
     </section>
+  );
+}
+
+function FieldGrid({ fields }: { fields: Field[] }) {
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      {fields.map((f) => (
+        <TextField key={f.name} field={f} />
+      ))}
+    </div>
   );
 }
 
@@ -109,7 +110,9 @@ export function Step2Counterparty() {
 
   return (
     <div className="space-y-6">
-      <Section title="Legal identity" fields={LEGAL_IDENTITY} />
+      <Section title="Legal identity">
+        <FieldGrid fields={LEGAL_IDENTITY} />
+      </Section>
 
       <Section
         title="Signatory"
@@ -139,16 +142,12 @@ export function Step2Counterparty() {
             </FormItem>
           )}
         />
-        {willSign && (
-          <div className="grid gap-3 sm:grid-cols-2">
-            {SIGNATORY.map((f) => (
-              <TextField key={f.name} field={f} />
-            ))}
-          </div>
-        )}
+        {willSign && <FieldGrid fields={SIGNATORY} />}
       </Section>
 
-      <Section title="Day-to-day contacts" fields={CONTACTS} />
+      <Section title="Day-to-day contacts">
+        <FieldGrid fields={CONTACTS} />
+      </Section>
 
       {isLA && (
         <FormField

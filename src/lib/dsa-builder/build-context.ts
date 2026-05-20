@@ -48,11 +48,9 @@ const MONTHS = [
 
 const ISO_DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
 
-// Date inputs in the wizard store ISO YYYY-MM-DD; render as long form
-// ("20 May 2026") which matches the prose style of the rest of the doc.
-// Any non-ISO string (free-text from older intakes, "[insert]" sentinels,
-// "TBC", etc.) is passed through unchanged so existing fixtures still
-// produce byte-stable output.
+// Wizard date inputs store ISO; doc prose uses "20 May 2026". Non-ISO
+// strings (free-text fixtures, "[insert]", "TBC") pass through unchanged
+// so byte-stable fixture parity holds.
 export function formatDate(value: string | undefined): string {
   if (!value) return "";
   const m = value.match(ISO_DATE_RE);
@@ -61,6 +59,14 @@ export function formatDate(value: string | undefined): string {
   const monthIdx = Number(mo) - 1;
   if (monthIdx < 0 || monthIdx > 11) return value;
   return `${Number(d)} ${MONTHS[monthIdx]} ${y}`;
+}
+
+export function todayIso(): string {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
 
 export function buildContext(intake: Intake): RenderContext {
@@ -77,12 +83,8 @@ export function buildContext(intake: Intake): RenderContext {
       : "LocalAuthority_England"
     : intake.counterpartyType;
 
-  // When the user opts out of collecting counterparty signing details
-  // up-front, force the signatory + witness blocks to "" so they fall
-  // through to [insert] in the rendered doc — the counterparty fills
-  // them in at signing time. We still keep position values, since those
-  // (Headteacher, Service Director, etc.) come from the counterparty
-  // type and not from the individual.
+  // Position values are kept regardless — they come from the counterparty
+  // type (Headteacher, Service Director), not the individual.
   const willSign = intake.counterpartyWillSign !== false;
   const sigName = willSign ? cp.signatoryName : "";
   const sigDate = willSign ? cp.signatoryDate : "";

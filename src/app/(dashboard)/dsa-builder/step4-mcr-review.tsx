@@ -1,6 +1,6 @@
 "use client";
 
-import { useFormContext } from "react-hook-form";
+import { useFormContext, useWatch } from "react-hook-form";
 import { RotateCcw } from "lucide-react";
 import {
   FormControl,
@@ -13,6 +13,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { todayIso } from "@/lib/dsa-builder/build-context";
+import { MCR_SIGNER_PRESET } from "@/lib/dsa-builder/defaults";
 import type { Intake } from "@/lib/dsa-builder/schema";
 
 const MCR_FIELDS: {
@@ -27,21 +29,6 @@ const MCR_FIELDS: {
   { name: "witnessPosition", label: "MCR witness position" },
   { name: "witnessDate", label: "MCR witness date", type: "date" },
 ];
-
-function todayIso(): string {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, "0");
-  const d = String(now.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
-
-const MCR_SIGNER_DEFAULTS = {
-  signatoryName: "Sharon McIntyre",
-  signatoryPosition: "Chief Executive Officer",
-  witnessName: "Colin Adam",
-  witnessPosition: "Head of Solutions",
-} as const;
 
 function ReviewRow({
   label,
@@ -68,20 +55,24 @@ function ReviewRow({
 
 export function Step4McrReview() {
   const form = useFormContext<Intake>();
-  const values = form.watch();
-  const isLA = values.counterpartyType === "LocalAuthority";
-  const willSign = values.counterpartyWillSign !== false;
+  // Steps 1–3 fields are immutable on this screen (user must press Back
+  // to edit them, which unmounts Step4). Read them once via getValues().
+  // Only the MCR block + counterpartyWillSign are watched for live updates.
+  const snapshot = form.getValues();
+  const mcr = useWatch({ control: form.control, name: "mcr" });
+  const willSign = useWatch({
+    control: form.control,
+    name: "counterpartyWillSign",
+  }) !== false;
+  const isLA = snapshot.counterpartyType === "LocalAuthority";
 
   const resetMcrDefaults = () => {
     const today = todayIso();
-    form.setValue("mcr.signatoryName", MCR_SIGNER_DEFAULTS.signatoryName, {
-      shouldValidate: true,
-    });
-    form.setValue("mcr.signatoryPosition", MCR_SIGNER_DEFAULTS.signatoryPosition);
-    form.setValue("mcr.signatoryDate", today);
-    form.setValue("mcr.witnessName", MCR_SIGNER_DEFAULTS.witnessName);
-    form.setValue("mcr.witnessPosition", MCR_SIGNER_DEFAULTS.witnessPosition);
-    form.setValue("mcr.witnessDate", today);
+    form.setValue(
+      "mcr",
+      { ...MCR_SIGNER_PRESET, signatoryDate: today, witnessDate: today },
+      { shouldValidate: true, shouldDirty: true },
+    );
   };
 
   return (
@@ -91,9 +82,11 @@ export function Step4McrReview() {
           <div className="space-y-1">
             <h2 className="text-sm font-semibold tracking-tight">MCR signing</h2>
             <p className="text-xs text-muted-foreground">
-              Pre-filled with Sharon McIntyre (CEO) signing and Colin Adam
-              (Head of Solutions) witnessing. Edit if a different MCR signatory
-              applies to this agreement.
+              Pre-filled with {MCR_SIGNER_PRESET.signatoryName} (
+              {MCR_SIGNER_PRESET.signatoryPosition}) signing and{" "}
+              {MCR_SIGNER_PRESET.witnessName} (
+              {MCR_SIGNER_PRESET.witnessPosition}) witnessing. Edit if a
+              different MCR signatory applies to this agreement.
             </p>
           </div>
           <Button
@@ -142,25 +135,25 @@ export function Step4McrReview() {
           </FormDescription>
         </div>
         <dl className="rounded-lg border border-border p-4">
-          <ReviewRow label="Jurisdiction" value={values.jurisdiction} />
-          <ReviewRow label="Counterparty type" value={values.counterpartyType} />
-          <ReviewRow label="Counterparty legal name" value={values.counterparty.legalName} />
-          <ReviewRow label="Counterparty short name" value={values.counterparty.shortName} />
-          <ReviewRow label="Counterparty address" value={values.counterparty.address} />
+          <ReviewRow label="Jurisdiction" value={snapshot.jurisdiction} />
+          <ReviewRow label="Counterparty type" value={snapshot.counterpartyType} />
+          <ReviewRow label="Counterparty legal name" value={snapshot.counterparty.legalName} />
+          <ReviewRow label="Counterparty short name" value={snapshot.counterparty.shortName} />
+          <ReviewRow label="Counterparty address" value={snapshot.counterparty.address} />
           {isLA && (
             <ReviewRow
               label="Covered schools / sites"
-              value={values.counterparty.coveredSchoolsSites}
+              value={snapshot.counterparty.coveredSchoolsSites}
             />
           )}
           {willSign ? (
             <>
-              <ReviewRow label="Signatory name" value={values.counterparty.signatoryName} />
-              <ReviewRow label="Signatory position" value={values.counterparty.signatoryPosition} />
-              <ReviewRow label="Signatory date" value={values.counterparty.signatoryDate} />
-              <ReviewRow label="Witness name" value={values.counterparty.witnessName} />
-              <ReviewRow label="Witness position" value={values.counterparty.witnessPosition} />
-              <ReviewRow label="Witness date" value={values.counterparty.witnessDate} />
+              <ReviewRow label="Signatory name" value={snapshot.counterparty.signatoryName} />
+              <ReviewRow label="Signatory position" value={snapshot.counterparty.signatoryPosition} />
+              <ReviewRow label="Signatory date" value={snapshot.counterparty.signatoryDate} />
+              <ReviewRow label="Witness name" value={snapshot.counterparty.witnessName} />
+              <ReviewRow label="Witness position" value={snapshot.counterparty.witnessPosition} />
+              <ReviewRow label="Witness date" value={snapshot.counterparty.witnessDate} />
             </>
           ) : (
             <ReviewRow
@@ -168,26 +161,26 @@ export function Step4McrReview() {
               value="Counterparty completes by hand"
             />
           )}
-          <ReviewRow label="Day-to-day rep title" value={values.counterparty.repJobTitle} />
-          <ReviewRow label="Day-to-day rep email" value={values.counterparty.repEmail} />
-          <ReviewRow label="Escalation rep title" value={values.counterparty.escalationJobTitle} />
-          <ReviewRow label="Escalation rep email" value={values.counterparty.escalationEmail} />
+          <ReviewRow label="Day-to-day rep title" value={snapshot.counterparty.repJobTitle} />
+          <ReviewRow label="Day-to-day rep email" value={snapshot.counterparty.repEmail} />
+          <ReviewRow label="Escalation rep title" value={snapshot.counterparty.escalationJobTitle} />
+          <ReviewRow label="Escalation rep email" value={snapshot.counterparty.escalationEmail} />
           <ReviewRow
             label="Criminal record"
-            value={values.includeCriminalRecord ? "Included" : "Excluded"}
+            value={snapshot.includeCriminalRecord ? "Included" : "Excluded"}
           />
           <ReviewRow
             label="S1/S2 (Y7/Y8) groupwork"
-            value={values.includeGroupwork ? "Included" : "Excluded"}
+            value={snapshot.includeGroupwork ? "Included" : "Excluded"}
           />
           <ReviewRow
             label="Fundraising"
-            value={values.includeFundraising ? "Included" : "Excluded"}
+            value={snapshot.includeFundraising ? "Included" : "Excluded"}
           />
-          <ReviewRow label="MCR signatory" value={values.mcr.signatoryName} />
-          <ReviewRow label="MCR signatory date" value={values.mcr.signatoryDate} />
-          <ReviewRow label="MCR witness" value={values.mcr.witnessName} />
-          <ReviewRow label="MCR witness date" value={values.mcr.witnessDate} />
+          <ReviewRow label="MCR signatory" value={mcr?.signatoryName} />
+          <ReviewRow label="MCR signatory date" value={mcr?.signatoryDate} />
+          <ReviewRow label="MCR witness" value={mcr?.witnessName} />
+          <ReviewRow label="MCR witness date" value={mcr?.witnessDate} />
         </dl>
       </section>
     </div>

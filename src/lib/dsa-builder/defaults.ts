@@ -47,6 +47,16 @@ export const COUNTERPARTY_DESCRIPTION_DEFAULTS: Partial<Record<CounterpartyType,
     "an independent school registered under section 95 of the Education and Skills Act 2008",
 };
 
+// Pre-fill used by the wizard's MCR step and "Reset to defaults" button.
+// Separate from MCR_DEFAULTS below, which is the [insert]-style fallback
+// applied when an intake JSON arrives with blank MCR fields.
+export const MCR_SIGNER_PRESET = {
+  signatoryName: "Sharon McIntyre",
+  signatoryPosition: "Chief Executive Officer",
+  witnessName: "Colin Adam",
+  witnessPosition: "Head of Solutions",
+} as const;
+
 export const MCR_DEFAULTS = {
   signatoryName: "[insert MCR signatory]",
   signatoryPosition: "Head of Schools",

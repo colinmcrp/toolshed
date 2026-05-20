@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import { useState } from "react";
-import { FormProvider, useForm } from "react-hook-form";
+import { FormProvider, useForm, type Path } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { IntakeSchema, type Intake } from "@/lib/dsa-builder/schema";
 import { generateAndDownload } from "@/lib/dsa-builder/render";
 import { Stepper } from "./stepper";
+import { Step1Jurisdiction } from "./step1-jurisdiction";
 
 type IntakeInput = z.input<typeof IntakeSchema>;
 
@@ -51,6 +52,13 @@ const DEFAULT_VALUES: IntakeInput = {
   },
 };
 
+const STEP_FIELDS: Record<number, Path<IntakeInput>[]> = {
+  0: ["jurisdiction", "counterpartyType"],
+  1: ["counterparty"],
+  2: ["includeCriminalRecord", "includeGroupwork", "includeFundraising"],
+  3: ["mcr"],
+};
+
 export function Wizard() {
   const [step, setStep] = useState(0);
   const form = useForm<IntakeInput, unknown, Intake>({
@@ -84,9 +92,12 @@ export function Wizard() {
         <Stepper current={step} />
         <Card>
           <CardContent className="p-6">
-            <p className="text-sm text-muted-foreground">
-              Step {step + 1} placeholder — to be implemented.
-            </p>
+            {step === 0 && <Step1Jurisdiction />}
+            {step !== 0 && (
+              <p className="text-sm text-muted-foreground">
+                Step {step + 1} placeholder — to be implemented.
+              </p>
+            )}
           </CardContent>
         </Card>
         <div className="flex items-center justify-between">
@@ -99,7 +110,14 @@ export function Wizard() {
             Back
           </Button>
           {step < 3 ? (
-            <Button type="button" onClick={() => setStep((s) => Math.min(3, s + 1))}>
+            <Button
+              type="button"
+              onClick={async () => {
+                const fields = STEP_FIELDS[step];
+                const valid = await form.trigger(fields);
+                if (valid) setStep((s) => Math.min(3, s + 1));
+              }}
+            >
               Next
             </Button>
           ) : (

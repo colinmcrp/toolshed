@@ -38,11 +38,16 @@ export function Step1Jurisdiction() {
                 value={field.value}
                 onValueChange={(value) => {
                   field.onChange(value);
-                  // If switching back to Scotland, force counterparty back to LA.
+                  // Scotland: state schools can't sign their own DSA, so force
+                  // counterparty to LA. Also sync the groupwork default —
+                  // Scotland includes S1/S2 groupwork by default, England does not.
                   if (value === "Scotland") {
                     form.setValue("counterpartyType", "LocalAuthority", {
                       shouldValidate: true,
                     });
+                    form.setValue("includeGroupwork", true);
+                  } else {
+                    form.setValue("includeGroupwork", false);
                   }
                 }}
                 className="flex flex-col gap-2"
@@ -83,7 +88,6 @@ export function Step1Jurisdiction() {
                     <div
                       key={opt.value}
                       className="flex items-center gap-2"
-                      data-disabled={disabled || undefined}
                     >
                       <RadioGroupItem
                         value={opt.value}

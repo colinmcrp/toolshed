@@ -109,7 +109,7 @@ describe("conditional content removal", () => {
     expect(renderText(intake)).not.toMatch(/S1 and S2/);
   });
 
-  it("omits Year 7/8 groupwork content when includeGroupwork is true in England", () => {
+  it("omits Year 7/8 groupwork content when includeGroupwork is false in England", () => {
     expect(
       renderText({ ...englandSchoolIntake, includeGroupwork: false }),
     ).not.toMatch(/Year 7 and Year 8/);

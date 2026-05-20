@@ -24,8 +24,7 @@ function assertCleanRender(zip: PizZip): void {
   }
 }
 
-// Pure renderer: takes a template buffer and a context, returns the
-// rendered .docx as a Buffer-like Uint8Array. Suitable for tests.
+// Pure renderer — no network I/O. Safe to call in tests.
 export function renderToBuffer(
   template: ArrayBuffer | Buffer | Uint8Array,
   context: RenderContext,
@@ -42,7 +41,6 @@ export function renderToBuffer(
   return doc.getZip().generate({ type: "uint8array", compression: "DEFLATE" });
 }
 
-// Browser orchestrator: fetch the template, render, save with file-saver.
 export async function generateAndDownload(intake: Intake): Promise<void> {
   const res = await fetch("/MCR_DSA_Master_Template.docx");
   if (!res.ok) {

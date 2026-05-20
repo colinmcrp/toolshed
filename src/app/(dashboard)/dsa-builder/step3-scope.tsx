@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect } from "react";
 import { useFormContext } from "react-hook-form";
 import {
   FormControl,
@@ -41,17 +40,6 @@ const FIELDS: ScopeField[] = [
 
 export function Step3Scope() {
   const form = useFormContext<Intake>();
-
-  // includeGroupwork defaults to true in Scotland, false in England. We
-  // resolve the undefined-on-mount case here so the switch reflects the
-  // jurisdiction-aware default visually.
-  useEffect(() => {
-    const value = form.getValues("includeGroupwork");
-    if (value === undefined) {
-      const jurisdiction = form.getValues("jurisdiction");
-      form.setValue("includeGroupwork", jurisdiction === "Scotland");
-    }
-  }, [form]);
 
   return (
     <div className="space-y-4">

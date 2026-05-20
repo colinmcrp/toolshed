@@ -55,11 +55,13 @@ export function ScotlandPathwayHelp() {
           <DialogHeader>
             <DialogTitle>Scotland LA-owned school DSA pathway</DialogTitle>
           </DialogHeader>
-          <iframe
-            src="/dsa-builder/scotland-pathway.html"
-            title="Scotland LA-owned school DSA pathway"
-            className="h-[70vh] w-full rounded border border-border"
-          />
+          {dialogOpen && (
+            <iframe
+              src="/dsa-builder/scotland-pathway.html"
+              title="Scotland LA-owned school DSA pathway"
+              className="h-[70vh] w-full rounded border border-border"
+            />
+          )}
         </DialogContent>
       </Dialog>
     </>

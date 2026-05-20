@@ -21,7 +21,7 @@ const DEFAULT_VALUES: IntakeInput = {
   jurisdiction: "Scotland",
   counterpartyType: "LocalAuthority",
   includeCriminalRecord: true,
-  includeGroupwork: undefined,
+  includeGroupwork: true,
   includeFundraising: true,
   counterparty: {
     legalName: "",
@@ -62,6 +62,8 @@ const STEP_FIELDS: Record<number, Path<IntakeInput>[]> = {
   3: ["mcr"],
 };
 
+const LAST_STEP = Object.keys(STEP_FIELDS).length - 1;
+
 export function Wizard() {
   const [step, setStep] = useState(0);
   const form = useForm<IntakeInput, unknown, Intake>({
@@ -98,7 +100,7 @@ export function Wizard() {
             {step === 0 && <Step1Jurisdiction />}
             {step === 1 && <Step2Counterparty />}
             {step === 2 && <Step3Scope />}
-            {step === 3 && <Step4McrReview />}
+            {step === LAST_STEP && <Step4McrReview />}
           </CardContent>
         </Card>
         <div className="flex items-center justify-between">
@@ -110,13 +112,13 @@ export function Wizard() {
           >
             Back
           </Button>
-          {step < 3 ? (
+          {step < LAST_STEP ? (
             <Button
               type="button"
               onClick={async () => {
                 const fields = STEP_FIELDS[step];
                 const valid = await form.trigger(fields);
-                if (valid) setStep((s) => Math.min(3, s + 1));
+                if (valid) setStep((s) => Math.min(LAST_STEP, s + 1));
               }}
             >
               Next

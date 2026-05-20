@@ -1,0 +1,45 @@
+{
+  "_comment": "Example intake for an English academy DSA. Demonstrates the school-counterparty path (no Schedule Part 8) and groupwork = false.",
+
+  "jurisdiction": "England",
+  "counterpartyType": "AcademyOrFreeSchool",
+
+  "includeCriminalRecord": true,
+  "includeGroupwork": false,
+  "includeFundraising": true,
+
+  "counterparty": {
+    "legalName": "Example Academy Trust",
+    "shortName": "the Academy",
+    "address": "1 Example Street, Example Town, EX1 1EX",
+
+    "signatoryName": "[insert]",
+    "signatoryPosition": "Headteacher",
+    "signatoryDate": "[insert]",
+    "signatoryPlace": "1 Example Street, Example Town, EX1 1EX",
+
+    "witnessName": "[insert]",
+    "witnessPosition": "School Business Manager",
+    "witnessDate": "[insert]",
+    "witnessAddress": "1 Example Street, Example Town, EX1 1EX",
+
+    "repJobTitle": "Designated Safeguarding Lead",
+    "repAddress": "1 Example Street, Example Town, EX1 1EX",
+    "repEmail": "[insert school contact]",
+    "repPhone": "[insert]",
+
+    "escalationJobTitle": "Headteacher",
+    "escalationAddress": "1 Example Street, Example Town, EX1 1EX",
+    "escalationEmail": "[insert escalation contact]",
+    "escalationPhone": "[insert]"
+  },
+
+  "mcr": {
+    "signatoryName": "Natalie Smith",
+    "signatoryPosition": "Head of Schools",
+    "signatoryDate": "[insert]",
+    "witnessName": "Donna Connell",
+    "witnessPosition": "Programme Manager",
+    "witnessDate": "[insert]"
+  }
+}

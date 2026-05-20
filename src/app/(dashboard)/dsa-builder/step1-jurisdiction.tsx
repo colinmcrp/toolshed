@@ -105,6 +105,13 @@ export function Step1Jurisdiction() {
                 })}
               </RadioGroup>
             </FormControl>
+            {isScotland && (
+              <p className="rounded-md border border-accent/40 bg-accent/10 px-3 py-2 text-xs text-muted-foreground">
+                Scottish state schools have no separate legal personality from
+                their local authority — the LA is the only legal person that
+                can sign. Open the help icon above for the full pathway.
+              </p>
+            )}
             <FormMessage />
           </FormItem>
         )}

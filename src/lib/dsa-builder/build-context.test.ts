@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildContext } from "./build-context";
+import { buildContext, formatDate } from "./build-context";
 import type { Intake } from "./schema";
 
 const baseCounterparty = {
@@ -28,6 +28,7 @@ const baseCounterparty = {
 const scotlandIntake: Intake = {
   jurisdiction: "Scotland",
   counterpartyType: "LocalAuthority",
+  counterpartyWillSign: true,
   includeCriminalRecord: true,
   includeFundraising: true,
   counterparty: baseCounterparty,
@@ -116,6 +117,43 @@ describe("buildContext", () => {
     expect(ctx.mcr.repJobTitle).toBe("Head of Systems, Evidence and Impact");
   });
 
+  it("counterpartyWillSign=false forces signatory + witness blocks to [insert]", () => {
+    const ctx = buildContext({
+      ...scotlandIntake,
+      counterpartyWillSign: false,
+      counterparty: {
+        ...baseCounterparty,
+        signatoryName: "Should be hidden",
+        signatoryDate: "2026-05-20",
+        witnessName: "Should also be hidden",
+        witnessDate: "2026-05-20",
+        signatoryPlace: "Edinburgh",
+        witnessAddress: "Edinburgh",
+      },
+    });
+    expect(ctx.counterparty.signatoryName).toBe("[insert]");
+    expect(ctx.counterparty.signatoryDate).toBe("[insert]");
+    expect(ctx.counterparty.witnessName).toBe("[insert]");
+    expect(ctx.counterparty.witnessDate).toBe("[insert]");
+    // signatoryPlace / witnessAddress still fall back to the counterparty
+    // address when blank, matching the willSign=true path.
+    expect(ctx.counterparty.signatoryPlace).toBe(baseCounterparty.address);
+    expect(ctx.counterparty.witnessAddress).toBe(baseCounterparty.address);
+  });
+
+  it("counterpartyWillSign=true (default) keeps the entered signatory values", () => {
+    const ctx = buildContext({
+      ...scotlandIntake,
+      counterparty: {
+        ...baseCounterparty,
+        signatoryName: "Jackie Reid",
+        signatoryDate: "2026-05-20",
+      },
+    });
+    expect(ctx.counterparty.signatoryName).toBe("Jackie Reid");
+    expect(ctx.counterparty.signatoryDate).toBe("20 May 2026");
+  });
+
   it("keeps [insert] placeholders when intake MCR fields are empty strings", () => {
     const ctx = buildContext({
       ...scotlandIntake,
@@ -134,5 +172,29 @@ describe("buildContext", () => {
     expect(ctx.mcr.witnessDate).toBe("[insert]");
     expect(ctx.mcr.signatoryPosition).toBe("Head of Schools");
     expect(ctx.mcr.witnessPosition).toBe("Programme Manager");
+  });
+});
+
+describe("formatDate", () => {
+  it("converts ISO YYYY-MM-DD to long form", () => {
+    expect(formatDate("2026-05-20")).toBe("20 May 2026");
+    expect(formatDate("2025-09-03")).toBe("3 September 2025");
+    expect(formatDate("2025-12-01")).toBe("1 December 2025");
+  });
+
+  it("passes free-text and [insert] sentinels through unchanged", () => {
+    expect(formatDate("26 August 2025")).toBe("26 August 2025");
+    expect(formatDate("03/09/2025")).toBe("03/09/2025");
+    expect(formatDate("[insert]")).toBe("[insert]");
+    expect(formatDate("TBC")).toBe("TBC");
+  });
+
+  it("handles empty / undefined input", () => {
+    expect(formatDate("")).toBe("");
+    expect(formatDate(undefined)).toBe("");
+  });
+
+  it("passes invalid ISO dates through (out-of-range month)", () => {
+    expect(formatDate("2026-13-01")).toBe("2026-13-01");
   });
 });

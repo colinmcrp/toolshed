@@ -85,6 +85,7 @@ const englandSchoolCounterparty: Counterparty = {
 const englandSchoolIntake: Intake = {
   jurisdiction: "England",
   counterpartyType: "AcademyOrFreeSchool",
+  counterpartyWillSign: true,
   includeCriminalRecord: true,
   includeFundraising: true,
   counterparty: englandSchoolCounterparty,

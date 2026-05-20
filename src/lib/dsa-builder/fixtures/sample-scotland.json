@@ -1,0 +1,47 @@
+{
+  "_comment": "Example intake for a Scottish local-authority DSA. Mirrors the City of Edinburgh Council agreement signed in September 2025.",
+
+  "jurisdiction": "Scotland",
+  "counterpartyType": "LocalAuthority",
+
+  "includeCriminalRecord": true,
+  "includeGroupwork": true,
+  "includeFundraising": true,
+
+  "counterparty": {
+    "legalName": "City of Edinburgh Council",
+    "shortName": "the Council",
+    "address": "Waverley Court, 4 East Market Street, Edinburgh EH8 8BG",
+
+    "signatoryName": "Jackie Reid",
+    "signatoryPosition": "Service Director for Education",
+    "signatoryDate": "26 August 2025",
+    "signatoryPlace": "Level 1.1 Waverley Court, 4 East Market Street, Edinburgh EH8 8BG",
+
+    "witnessName": "Melanie McDonald",
+    "witnessPosition": "Executive Assistant",
+    "witnessDate": "26 August 2025",
+    "witnessAddress": "Level 1.1 Waverley Court, 4 East Market Street, Edinburgh EH8 8BG",
+
+    "repJobTitle": "Quality Improvement Manager",
+    "repAddress": "Waverley Court, 4 East Market Street, Edinburgh EH8 8BG",
+    "repEmail": "[insert primary council contact]",
+    "repPhone": "[insert]",
+
+    "escalationJobTitle": "Service Director for Education",
+    "escalationAddress": "Waverley Court, 4 East Market Street, Edinburgh EH8 8BG",
+    "escalationEmail": "[insert council escalation contact]",
+    "escalationPhone": "[insert]",
+
+    "coveredSchoolsSites": "All City of Edinburgh secondary schools where MCR is present and delivering the MCR Programme, and alternative provision sites as agreed first with City of Edinburgh Council."
+  },
+
+  "mcr": {
+    "signatoryName": "Natalie Smith",
+    "signatoryPosition": "Head of Schools",
+    "signatoryDate": "03/09/2025",
+    "witnessName": "Donna Connell",
+    "witnessPosition": "Programme Manager",
+    "witnessDate": "03/09/2025"
+  }
+}

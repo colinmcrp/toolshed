@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // DSA source materials — copied into public/ and src/lib by the DSA builder.
+    "DSA/**",
   ]),
 ]);
 

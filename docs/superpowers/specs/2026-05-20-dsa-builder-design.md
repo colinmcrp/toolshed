@@ -70,12 +70,16 @@ between steps.
 
 - `jurisdiction`: radio, "Scotland" or "England", required
 - `counterpartyType`: radio, filtered by jurisdiction
-  - Scotland: only `LocalAuthority` is enabled. An info card under the
-    option paraphrases §2 of the review report (Scottish state schools
+  - Scotland: only `LocalAuthority` is enabled. A `?` icon button next to
+    the "Counterparty type" field label opens a shadcn `Popover` with a
+    short paraphrase of §2 of the review report — Scottish state schools
     have no separate legal personality from their LA; the LA is the only
-    legal person that can sign).
+    legal person that can sign. The popover contains a **See the full
+    pathway** link that opens a shadcn `Dialog` showing the SVG flow
+    chart from `DSA/scotland_la_school_dsa_pathway.html` ("Getting a DSA
+    for a single LA-owned school in Scotland").
   - England: enabled options are `LocalAuthority`, `MaintainedSchool`,
-    `AcademyOrFreeSchool`, `IndependentSchool`
+    `AcademyOrFreeSchool`, `IndependentSchool`. The `?` is hidden.
 - Both fields required to continue
 
 ### Step 2 — Counterparty details
@@ -297,13 +301,14 @@ is stripped.
 
 ```
 src/app/(dashboard)/dsa-builder/
-  page.tsx                 # entry — renders <Wizard />
-  wizard.tsx               # owns step state + RHF form
+  page.tsx                       # entry — renders <Wizard />
+  wizard.tsx                     # owns step state + RHF form
   stepper.tsx
   step1-jurisdiction.tsx
   step2-counterparty.tsx
   step3-scope.tsx
   step4-mcr-review.tsx
+  scotland-pathway-dialog.tsx    # ? popover + dialog containing the SVG flow chart
 src/lib/dsa-builder/
   schema.ts                # Zod schemas + inferred types
   defaults.ts              # ported defaults blocks
@@ -358,7 +363,9 @@ Enforced in the UI:
 3. **Scotland hard-block.** Setting jurisdiction to Scotland and trying
    to set `counterpartyType` to anything other than `LocalAuthority` is
    impossible in the UI and rejected by Zod with the specific legal
-   message.
+   message. The `?` popover next to the counterparty-type field opens
+   when Scotland is selected, and its "See the full pathway" link opens
+   a dialog containing the embedded SVG flow chart.
 4. **Conditional content removal.** With `includeGroupwork: false`,
    "S1 and S2" (Scotland) and "Year 7 and Year 8" (England) must not
    appear. With `includeCriminalRecord: false`, "criminal record" and

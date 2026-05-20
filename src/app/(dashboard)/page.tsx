@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Lock, Globe } from "lucide-react";
+import { Lock, Globe, FileText } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
 const tools = [
@@ -14,6 +14,12 @@ const tools = [
     icon: Globe,
     title: "HTML Host",
     description: "Host and share HTML artifacts by link.",
+  },
+  {
+    href: "/dsa-builder",
+    icon: FileText,
+    title: "DSA Builder",
+    description: "Generate a Data Sharing Agreement Word document.",
   },
 ];
 

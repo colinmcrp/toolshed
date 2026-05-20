@@ -13,6 +13,7 @@ import { Stepper } from "./stepper";
 import { Step1Jurisdiction } from "./step1-jurisdiction";
 import { Step2Counterparty } from "./step2-counterparty";
 import { Step3Scope } from "./step3-scope";
+import { Step4McrReview } from "./step4-mcr-review";
 
 type IntakeInput = z.input<typeof IntakeSchema>;
 
@@ -97,11 +98,7 @@ export function Wizard() {
             {step === 0 && <Step1Jurisdiction />}
             {step === 1 && <Step2Counterparty />}
             {step === 2 && <Step3Scope />}
-            {step === 3 && (
-              <p className="text-sm text-muted-foreground">
-                Step 4 placeholder — to be implemented.
-              </p>
-            )}
+            {step === 3 && <Step4McrReview />}
           </CardContent>
         </Card>
         <div className="flex items-center justify-between">
@@ -125,8 +122,12 @@ export function Wizard() {
               Next
             </Button>
           ) : (
-            <Button type="button" onClick={onSubmit}>
-              Generate DSA
+            <Button
+              type="button"
+              onClick={onSubmit}
+              disabled={!form.formState.isValid || form.formState.isSubmitting}
+            >
+              {form.formState.isSubmitting ? "Generating…" : "Generate DSA"}
             </Button>
           )}
         </div>

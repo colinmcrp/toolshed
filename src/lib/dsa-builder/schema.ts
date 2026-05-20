@@ -61,7 +61,14 @@ export const IntakeSchema = z
     includeGroupwork: z.boolean().optional(),
     includeFundraising: z.boolean().default(true),
     counterparty: CounterpartySchema,
-    mcr: McrSchema.optional().default({}),
+    mcr: McrSchema.optional().default({
+      signatoryName: "",
+      signatoryPosition: "Head of Schools",
+      signatoryDate: "",
+      witnessName: "",
+      witnessPosition: "Programme Manager",
+      witnessDate: "",
+    }),
   })
   .refine(
     (d) => !(d.jurisdiction === "Scotland" && d.counterpartyType !== "LocalAuthority"),

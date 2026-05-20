@@ -41,6 +41,34 @@ function withInsertFallback(value: string | undefined): string {
   return value && value.length > 0 ? value : INSERT;
 }
 
+const MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+
+const ISO_DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+// Wizard date inputs store ISO; doc prose uses "20 May 2026". Non-ISO
+// strings (free-text fixtures, "[insert]", "TBC") pass through unchanged
+// so byte-stable fixture parity holds.
+export function formatDate(value: string | undefined): string {
+  if (!value) return "";
+  const m = value.match(ISO_DATE_RE);
+  if (!m) return value;
+  const [, y, mo, d] = m;
+  const monthIdx = Number(mo) - 1;
+  if (monthIdx < 0 || monthIdx > 11) return value;
+  return `${Number(d)} ${MONTHS[monthIdx]} ${y}`;
+}
+
+export function todayIso(): string {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 export function buildContext(intake: Intake): RenderContext {
   const isScotland = intake.jurisdiction === "Scotland";
   const isEngland = !isScotland;
@@ -55,20 +83,30 @@ export function buildContext(intake: Intake): RenderContext {
       : "LocalAuthority_England"
     : intake.counterpartyType;
 
+  // Position values are kept regardless — they come from the counterparty
+  // type (Headteacher, Service Director), not the individual.
+  const willSign = intake.counterpartyWillSign !== false;
+  const sigName = willSign ? cp.signatoryName : "";
+  const sigDate = willSign ? cp.signatoryDate : "";
+  const sigPlace = willSign ? cp.signatoryPlace : "";
+  const witName = willSign ? cp.witnessName : "";
+  const witDate = willSign ? cp.witnessDate : "";
+  const witAddress = willSign ? cp.witnessAddress : "";
+
   const counterparty: CounterpartyContext = {
     ...cp,
     shortName: cp.shortName || (isLA ? "the Council" : "the School"),
     incorporatingStatute: COUNTERPARTY_INCORPORATING_DEFAULTS[incorporatingKey] ?? "",
     incorporatingDescription:
       COUNTERPARTY_DESCRIPTION_DEFAULTS[intake.counterpartyType] ?? "",
-    signatoryName: withInsertFallback(cp.signatoryName),
+    signatoryName: withInsertFallback(sigName),
     signatoryPosition: withInsertFallback(cp.signatoryPosition),
-    signatoryDate: withInsertFallback(cp.signatoryDate),
-    signatoryPlace: withInsertFallback(cp.signatoryPlace || cp.address),
-    witnessName: withInsertFallback(cp.witnessName),
+    signatoryDate: withInsertFallback(formatDate(sigDate)),
+    signatoryPlace: withInsertFallback(sigPlace || cp.address),
+    witnessName: withInsertFallback(witName),
     witnessPosition: withInsertFallback(cp.witnessPosition),
-    witnessDate: withInsertFallback(cp.witnessDate),
-    witnessAddress: withInsertFallback(cp.witnessAddress || cp.address),
+    witnessDate: withInsertFallback(formatDate(witDate)),
+    witnessAddress: withInsertFallback(witAddress || cp.address),
     repJobTitle: withInsertFallback(cp.repJobTitle),
     repAddress: withInsertFallback(cp.repAddress),
     repEmail: withInsertFallback(cp.repEmail),
@@ -100,7 +138,12 @@ export function buildContext(intake: Intake): RenderContext {
   const intakeMcrNonEmpty = Object.fromEntries(
     Object.entries(intake.mcr).filter(([, v]) => v !== ""),
   );
-  const mcr = { ...MCR_DEFAULTS, ...intakeMcrNonEmpty };
+  const mcr: Record<keyof typeof MCR_DEFAULTS, string> = {
+    ...MCR_DEFAULTS,
+    ...intakeMcrNonEmpty,
+  };
+  mcr.signatoryDate = formatDate(mcr.signatoryDate);
+  mcr.witnessDate = formatDate(mcr.witnessDate);
 
   return {
     isScotland,

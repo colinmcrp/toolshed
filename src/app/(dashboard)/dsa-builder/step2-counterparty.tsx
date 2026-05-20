@@ -10,6 +10,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import type { Intake } from "@/lib/dsa-builder/schema";
 
@@ -17,7 +18,7 @@ type Field = {
   name: keyof Intake["counterparty"];
   label: string;
   required?: boolean;
-  type?: "email";
+  type?: "email" | "date";
 };
 
 const LEGAL_IDENTITY: Field[] = [
@@ -29,11 +30,11 @@ const LEGAL_IDENTITY: Field[] = [
 const SIGNATORY: Field[] = [
   { name: "signatoryName", label: "Signatory name" },
   { name: "signatoryPosition", label: "Signatory position" },
-  { name: "signatoryDate", label: "Signatory date" },
+  { name: "signatoryDate", label: "Signatory date", type: "date" },
   { name: "signatoryPlace", label: "Place of signing" },
   { name: "witnessName", label: "Witness name" },
   { name: "witnessPosition", label: "Witness position" },
-  { name: "witnessDate", label: "Witness date" },
+  { name: "witnessDate", label: "Witness date", type: "date" },
   { name: "witnessAddress", label: "Witness address" },
 ];
 
@@ -70,28 +71,83 @@ function TextField({ field }: { field: Field }) {
   );
 }
 
-function Section({ title, fields }: { title: string; fields: Field[] }) {
+function Section({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description?: string;
+  children: React.ReactNode;
+}) {
   return (
     <section className="space-y-3">
-      <h2 className="text-sm font-semibold tracking-tight">{title}</h2>
-      <div className="grid gap-3 sm:grid-cols-2">
-        {fields.map((f) => (
-          <TextField key={f.name} field={f} />
-        ))}
+      <div className="space-y-1">
+        <h2 className="text-sm font-semibold tracking-tight">{title}</h2>
+        {description && (
+          <p className="text-xs text-muted-foreground">{description}</p>
+        )}
       </div>
+      {children}
     </section>
+  );
+}
+
+function FieldGrid({ fields }: { fields: Field[] }) {
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      {fields.map((f) => (
+        <TextField key={f.name} field={f} />
+      ))}
+    </div>
   );
 }
 
 export function Step2Counterparty() {
   const form = useFormContext<Intake>();
   const isLA = form.watch("counterpartyType") === "LocalAuthority";
+  const willSign = form.watch("counterpartyWillSign") !== false;
 
   return (
     <div className="space-y-6">
-      <Section title="Legal identity" fields={LEGAL_IDENTITY} />
-      <Section title="Signatory" fields={SIGNATORY} />
-      <Section title="Day-to-day contacts" fields={CONTACTS} />
+      <Section title="Legal identity">
+        <FieldGrid fields={LEGAL_IDENTITY} />
+      </Section>
+
+      <Section
+        title="Signatory"
+        description="The named individual on the counterparty side who will sign the DSA, and the witness to their signature."
+      >
+        <FormField
+          control={form.control}
+          name="counterpartyWillSign"
+          render={({ field }) => (
+            <FormItem className="flex items-start justify-between gap-4 rounded-lg border border-border bg-muted/30 p-4">
+              <div className="space-y-1">
+                <FormLabel className="text-sm">
+                  Collect counterparty signing details now
+                </FormLabel>
+                <FormDescription className="text-xs">
+                  Turn off if the counterparty will fill in their name, date,
+                  witness etc. by hand at signing. The generated DSA will show{" "}
+                  <code>[insert]</code> placeholders for them to complete.
+                </FormDescription>
+              </div>
+              <FormControl>
+                <Switch
+                  checked={!!field.value}
+                  onCheckedChange={field.onChange}
+                />
+              </FormControl>
+            </FormItem>
+          )}
+        />
+        {willSign && <FieldGrid fields={SIGNATORY} />}
+      </Section>
+
+      <Section title="Day-to-day contacts">
+        <FieldGrid fields={CONTACTS} />
+      </Section>
 
       {isLA && (
         <FormField

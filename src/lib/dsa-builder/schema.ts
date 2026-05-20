@@ -45,10 +45,10 @@ export type Counterparty = z.infer<typeof CounterpartySchema>;
 
 export const McrSchema = z.object({
   signatoryName: z.string().optional().default(""),
-  signatoryPosition: z.string().optional().default("Head of Schools"),
+  signatoryPosition: z.string().optional().default("Chief Executive Officer"),
   signatoryDate: z.string().optional().default(""),
   witnessName: z.string().optional().default(""),
-  witnessPosition: z.string().optional().default("Programme Manager"),
+  witnessPosition: z.string().optional().default("Head of Solutions"),
   witnessDate: z.string().optional().default(""),
 });
 export type Mcr = z.infer<typeof McrSchema>;
@@ -57,16 +57,17 @@ export const IntakeSchema = z
   .object({
     jurisdiction: Jurisdiction,
     counterpartyType: CounterpartyType,
+    counterpartyWillSign: z.boolean().default(true),
     includeCriminalRecord: z.boolean().default(true),
     includeGroupwork: z.boolean().optional(),
     includeFundraising: z.boolean().default(true),
     counterparty: CounterpartySchema,
     mcr: McrSchema.optional().default({
       signatoryName: "",
-      signatoryPosition: "Head of Schools",
+      signatoryPosition: "Chief Executive Officer",
       signatoryDate: "",
       witnessName: "",
-      witnessPosition: "Programme Manager",
+      witnessPosition: "Head of Solutions",
       witnessDate: "",
     }),
   })

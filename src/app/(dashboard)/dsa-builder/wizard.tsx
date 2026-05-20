@@ -12,6 +12,7 @@ import { generateAndDownload } from "@/lib/dsa-builder/render";
 import { Stepper } from "./stepper";
 import { Step1Jurisdiction } from "./step1-jurisdiction";
 import { Step2Counterparty } from "./step2-counterparty";
+import { Step3Scope } from "./step3-scope";
 
 type IntakeInput = z.input<typeof IntakeSchema>;
 
@@ -95,9 +96,10 @@ export function Wizard() {
           <CardContent className="p-6">
             {step === 0 && <Step1Jurisdiction />}
             {step === 1 && <Step2Counterparty />}
-            {step >= 2 && (
+            {step === 2 && <Step3Scope />}
+            {step === 3 && (
               <p className="text-sm text-muted-foreground">
-                Step {step + 1} placeholder — to be implemented.
+                Step 4 placeholder — to be implemented.
               </p>
             )}
           </CardContent>

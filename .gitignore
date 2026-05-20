@@ -42,3 +42,9 @@ next-env.d.ts
 
 # DSA source materials (reference only — assets are copied into public/ and src/lib)
 /DSA/
+
+# DSA Builder personal signatures — staged locally, served from Supabase
+# Storage with auth at render time (see PR B). Anything matching here
+# stays out of the public Vercel build.
+/public/dsa-builder/images/*
+!/public/dsa-builder/images/mcr-logo.png

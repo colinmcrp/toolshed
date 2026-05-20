@@ -115,4 +115,24 @@ describe("buildContext", () => {
     expect(ctx.mcr.signatoryName).toBe("Natalie Smith");
     expect(ctx.mcr.repJobTitle).toBe("Head of Systems, Evidence and Impact");
   });
+
+  it("keeps [insert] placeholders when intake MCR fields are empty strings", () => {
+    const ctx = buildContext({
+      ...scotlandIntake,
+      mcr: {
+        signatoryName: "",
+        signatoryPosition: "",
+        signatoryDate: "",
+        witnessName: "",
+        witnessPosition: "",
+        witnessDate: "",
+      },
+    });
+    expect(ctx.mcr.signatoryName).toBe("[insert MCR signatory]");
+    expect(ctx.mcr.witnessName).toBe("[insert MCR witness]");
+    expect(ctx.mcr.signatoryDate).toBe("[insert]");
+    expect(ctx.mcr.witnessDate).toBe("[insert]");
+    expect(ctx.mcr.signatoryPosition).toBe("Head of Schools");
+    expect(ctx.mcr.witnessPosition).toBe("Programme Manager");
+  });
 });

@@ -92,7 +92,15 @@ export function buildContext(intake: Intake): RenderContext {
 
   const schedulePartsCount = isLA ? "eight (8)" : "seven (7)";
 
-  const mcr = { ...MCR_DEFAULTS, ...intake.mcr };
+  // Empty intake fields fall back to MCR_DEFAULTS (which contain "[insert]"
+  // placeholders for the signing block), matching how withInsertFallback
+  // handles the counterparty side. Without this filter, an unfilled MCR
+  // step 4 would produce a doc with blank signature lines instead of visible
+  // [insert] placeholders.
+  const intakeMcrNonEmpty = Object.fromEntries(
+    Object.entries(intake.mcr).filter(([, v]) => v !== ""),
+  );
+  const mcr = { ...MCR_DEFAULTS, ...intakeMcrNonEmpty };
 
   return {
     isScotland,

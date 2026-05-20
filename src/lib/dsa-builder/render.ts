@@ -53,7 +53,7 @@ export async function generateAndDownload(intake: Intake): Promise<void> {
   const buf = await res.arrayBuffer();
   const context = buildContext(intake);
   const bytes = renderToBuffer(buf, context);
-  const blob = new Blob([bytes], {
+  const blob = new Blob([bytes as BlobPart], {
     type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   });
   saveAs(blob, buildFilename(intake.counterparty.shortName));

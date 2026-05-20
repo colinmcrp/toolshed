@@ -32,7 +32,7 @@ export interface RenderContext {
   schedulePartsCount: string;
   pageCount: string;
   counterparty: CounterpartyContext;
-  mcr: typeof MCR_DEFAULTS;
+  mcr: Record<keyof typeof MCR_DEFAULTS, string>;
 }
 
 const INSERT = "[insert]";

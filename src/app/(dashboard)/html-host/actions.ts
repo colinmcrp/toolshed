@@ -12,7 +12,7 @@ import {
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { HtmlArtifact } from "@/types/database";
 
-const MAX_BYTES = 6 * 1024 * 1024; // 6 MB (matches bucket + plan)
+const MAX_BYTES = 10 * 1024 * 1024; // 10 MB (matches bucket + plan)
 const BUCKET = "html-artifacts";
 // Staging filename used while a zip bundle is uploaded directly from the browser.
 // Removed before extracted entries are written so a zip entry can legitimately be
@@ -172,7 +172,7 @@ export async function prepareArtifactUpload(input: {
     return { ok: false, error: "File is empty or has an invalid size", field: "file" };
   }
   if (input.declaredSize > MAX_BYTES) {
-    return { ok: false, error: "File must be 6 MB or smaller", field: "file" };
+    return { ok: false, error: "File must be 10 MB or smaller", field: "file" };
   }
 
   // Cross-user slug uniqueness check via service client (bypasses RLS).
@@ -344,7 +344,7 @@ export async function finalizeArtifactUpload(input: {
           "The zip contains an unsafe path (..) and cannot be accepted.",
         "absolute-path":
           "The zip contains an absolute path and cannot be accepted.",
-        "size-exceeded": "Uncompressed bundle size exceeds 6 MB.",
+        "size-exceeded": "Uncompressed bundle size exceeds 10 MB.",
         "invalid-zip": "Could not read the zip file.",
       };
       message = messageMap[err.code] ?? message;

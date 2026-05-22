@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import PizZip from "pizzip";
 import { buildContext } from "./build-context";
 import { renderToBuffer } from "./render";
 import { extractDocxText } from "./docx-text";
@@ -125,6 +126,27 @@ describe("conditional content removal", () => {
   it("omits fundraising content when includeFundraising is false", () => {
     const text = renderText({ ...englandSchoolIntake, includeFundraising: false });
     expect(text).not.toMatch(/fundraising/i);
+  });
+});
+
+describe("MCR Pathways logo is baked into the template", () => {
+  it("preserves the logo PNG in word/media after rendering", () => {
+    const intake = loadIntake("sample-scotland.json");
+    const got = renderToBuffer(TEMPLATE, buildContext(intake));
+    const zip = new PizZip(got);
+    const mediaFiles = Object.keys(zip.files).filter((f) =>
+      f.startsWith("word/media/"),
+    );
+    expect(mediaFiles).toContain("word/media/mcr-logo.png");
+  });
+
+  it("preserves the logo <w:drawing> element in document.xml", () => {
+    const intake = loadIntake("sample-england-academy.json");
+    const got = renderToBuffer(TEMPLATE, buildContext(intake));
+    const zip = new PizZip(got);
+    const xml = zip.file("word/document.xml")?.asText() ?? "";
+    expect(xml).toContain("<w:drawing>");
+    expect(xml).toContain("rIdMCRLogo");
   });
 });
 

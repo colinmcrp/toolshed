@@ -27,7 +27,7 @@ import {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const MAX_BYTES = 6 * 1024 * 1024; // 6 MB
+const MAX_BYTES = 10 * 1024 * 1024; // 10 MB
 
 // ─── Slug validation status type ─────────────────────────────────────────────
 
@@ -104,7 +104,7 @@ export function UploadDialog() {
     }
 
     if (f.size > MAX_BYTES) {
-      const msg = `File is too large (${formatBytes(f.size)}). Max 6 MB.`;
+      const msg = `File is too large (${formatBytes(f.size)}). Max 10 MB.`;
       setFileError(msg);
       toast.error(msg);
       return;
@@ -289,7 +289,7 @@ export function UploadDialog() {
         <DialogHeader>
           <DialogTitle>Upload HTML artifact</DialogTitle>
           <DialogDescription>
-            Single .html file or .zip bundle, max 6 MB. Bundles must contain
+            Single .html file or .zip bundle, max 10 MB. Bundles must contain
             index.html at the root.
           </DialogDescription>
         </DialogHeader>
@@ -355,7 +355,7 @@ export function UploadDialog() {
                     </span>{" "}
                     or drag &amp; drop
                   </span>
-                  <span className="text-xs">.html or .zip, max 6 MB</span>
+                  <span className="text-xs">.html or .zip, max 10 MB</span>
                 </button>
               </div>
             )}

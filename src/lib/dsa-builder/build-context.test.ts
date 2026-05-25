@@ -68,7 +68,7 @@ describe("buildContext", () => {
     expect(ctx.schedulePartsCount).toBe("seven (7)");
   });
 
-  it("defaults groupwork true in Scotland and false in England when unset", () => {
+  it("defaults groupwork true in both jurisdictions when unset", () => {
     const sc = buildContext({ ...scotlandIntake, includeGroupwork: undefined });
     expect(sc.group).toBe(true);
     const en = buildContext({
@@ -78,7 +78,21 @@ describe("buildContext", () => {
       counterparty: { ...baseCounterparty, coveredSchoolsSites: "" },
       includeGroupwork: undefined,
     });
-    expect(en.group).toBe(false);
+    expect(en.group).toBe(true);
+  });
+
+  it("uses jurisdiction-appropriate junior-range article (an S1 / a Year 7)", () => {
+    const sc = buildContext(scotlandIntake);
+    expect(sc.yearGroupJuniorArticle).toBe("an");
+    expect(sc.yearGroupJuniorRange).toBe("S1 and S2");
+    const en = buildContext({
+      ...scotlandIntake,
+      jurisdiction: "England",
+      counterpartyType: "AcademyOrFreeSchool",
+      counterparty: { ...baseCounterparty, coveredSchoolsSites: "" },
+    });
+    expect(en.yearGroupJuniorArticle).toBe("a");
+    expect(en.yearGroupJuniorRange).toBe("Year 7 and Year 8");
   });
 
   it("respects an explicit groupwork override", () => {

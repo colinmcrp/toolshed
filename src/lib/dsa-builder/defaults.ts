@@ -11,6 +11,7 @@ export const SCOTLAND_DEFAULTS = {
   targetedGroup: "care experienced or those other S1-S6 Children and Young People",
   yearGroupSeniorRange: "S3 and upwards",
   yearGroupJuniorRange: "S1 and S2",
+  yearGroupJuniorArticle: "an",
 } as const;
 
 export const ENGLAND_DEFAULTS = {
@@ -24,6 +25,7 @@ export const ENGLAND_DEFAULTS = {
   targetedGroup: "care experienced or those other Year 8 to Year 13 Children and Young People",
   yearGroupSeniorRange: "Year 9 and upwards",
   yearGroupJuniorRange: "Year 7 and Year 8",
+  yearGroupJuniorArticle: "a",
 } as const;
 
 // Keyed by `${counterpartyType}_${jurisdiction}` for LA, by counterpartyType otherwise.

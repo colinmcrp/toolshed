@@ -154,17 +154,17 @@ export function Step4McrReview() {
               <ReviewRow label="Witness name" value={snapshot.counterparty.witnessName} />
               <ReviewRow label="Witness position" value={snapshot.counterparty.witnessPosition} />
               <ReviewRow label="Witness date" value={snapshot.counterparty.witnessDate} />
+              <ReviewRow label="Day-to-day rep title" value={snapshot.counterparty.repJobTitle} />
+              <ReviewRow label="Day-to-day rep email" value={snapshot.counterparty.repEmail} />
+              <ReviewRow label="Escalation rep title" value={snapshot.counterparty.escalationJobTitle} />
+              <ReviewRow label="Escalation rep email" value={snapshot.counterparty.escalationEmail} />
             </>
           ) : (
             <ReviewRow
-              label="Counterparty signing"
+              label="Counterparty signing and contacts"
               value="Counterparty completes by hand"
             />
           )}
-          <ReviewRow label="Day-to-day rep title" value={snapshot.counterparty.repJobTitle} />
-          <ReviewRow label="Day-to-day rep email" value={snapshot.counterparty.repEmail} />
-          <ReviewRow label="Escalation rep title" value={snapshot.counterparty.escalationJobTitle} />
-          <ReviewRow label="Escalation rep email" value={snapshot.counterparty.escalationEmail} />
           <ReviewRow
             label="Criminal record"
             value={snapshot.includeCriminalRecord ? "Included" : "Excluded"}

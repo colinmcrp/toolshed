@@ -117,7 +117,7 @@ describe("buildContext", () => {
     expect(ctx.mcr.repJobTitle).toBe("Head of Systems, Evidence and Impact");
   });
 
-  it("counterpartyWillSign=false forces signatory + witness blocks to [insert]", () => {
+  it("counterpartyWillSign=false forces signatory, witness, and contact blocks to [insert]", () => {
     const ctx = buildContext({
       ...scotlandIntake,
       counterpartyWillSign: false,
@@ -129,6 +129,14 @@ describe("buildContext", () => {
         witnessDate: "2026-05-20",
         signatoryPlace: "Edinburgh",
         witnessAddress: "Edinburgh",
+        repJobTitle: "Should be hidden",
+        repAddress: "Should be hidden",
+        repEmail: "rep@example.org",
+        repPhone: "0131 555 0001",
+        escalationJobTitle: "Should be hidden",
+        escalationAddress: "Should be hidden",
+        escalationEmail: "esc@example.org",
+        escalationPhone: "0131 555 0002",
       },
     });
     expect(ctx.counterparty.signatoryName).toBe("[insert]");
@@ -139,6 +147,15 @@ describe("buildContext", () => {
     // address when blank, matching the willSign=true path.
     expect(ctx.counterparty.signatoryPlace).toBe(baseCounterparty.address);
     expect(ctx.counterparty.witnessAddress).toBe(baseCounterparty.address);
+    // Day-to-day and escalation contacts follow the same toggle.
+    expect(ctx.counterparty.repJobTitle).toBe("[insert]");
+    expect(ctx.counterparty.repAddress).toBe("[insert]");
+    expect(ctx.counterparty.repEmail).toBe("[insert]");
+    expect(ctx.counterparty.repPhone).toBe("[insert]");
+    expect(ctx.counterparty.escalationJobTitle).toBe("[insert]");
+    expect(ctx.counterparty.escalationAddress).toBe("[insert]");
+    expect(ctx.counterparty.escalationEmail).toBe("[insert]");
+    expect(ctx.counterparty.escalationPhone).toBe("[insert]");
   });
 
   it("counterpartyWillSign=true (default) keeps the entered signatory values", () => {

@@ -7,10 +7,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { saveAs } from "file-saver";
 import { IntakeSchema, type Intake } from "@/lib/dsa-builder/schema";
 import { todayIso } from "@/lib/dsa-builder/build-context";
 import { MCR_SIGNER_PRESET } from "@/lib/dsa-builder/defaults";
-import { generateAndDownload } from "@/lib/dsa-builder/render";
+import { generateDsa } from "./actions";
 import { Stepper } from "./stepper";
 import { Step1Jurisdiction } from "./step1-jurisdiction";
 import { Step2Counterparty } from "./step2-counterparty";
@@ -100,7 +101,13 @@ export function Wizard() {
 
   const onSubmit = form.handleSubmit(async (data) => {
     try {
-      await generateAndDownload(data);
+      const { filename, bytes } = await generateDsa(data);
+      saveAs(
+        new Blob([bytes as BlobPart], {
+          type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        }),
+        filename,
+      );
       toast.success("DSA generated", {
         action: {
           label: "Generate another",

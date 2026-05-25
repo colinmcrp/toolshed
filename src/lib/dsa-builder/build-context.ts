@@ -28,6 +28,7 @@ export interface RenderContext {
   targetedGroup: string;
   yearGroupSeniorRange: string;
   yearGroupJuniorRange: string;
+  yearGroupJuniorArticle: string;
   staffDataSubjects: string;
   schedulePartsCount: string;
   pageCount: string;
@@ -129,7 +130,10 @@ export function buildContext(intake: Intake): RenderContext {
   };
 
   const crim = intake.includeCriminalRecord;
-  const group = intake.includeGroupwork === undefined ? isScotland : intake.includeGroupwork;
+  // The groupwork clause is rewritten per jurisdiction (S1/S2 vs Y7/Y8) via
+  // yearGroupJuniorRange + yearGroupJuniorArticle, so it now applies by default
+  // in both jurisdictions when the intake leaves the flag unset.
+  const group = intake.includeGroupwork === undefined ? true : intake.includeGroupwork;
   const fund = intake.includeFundraising;
 
   const staffDataSubjects = isLA

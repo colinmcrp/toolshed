@@ -39,15 +39,13 @@ export function Step1Jurisdiction() {
                 onValueChange={(value) => {
                   field.onChange(value);
                   // Scotland: state schools can't sign their own DSA, so force
-                  // counterparty to LA. Also sync the groupwork default —
-                  // Scotland includes S1/S2 groupwork by default, England does not.
+                  // counterparty to LA. Groupwork applies in both jurisdictions
+                  // (the clause is rewritten S1/S2 ↔ Y7/Y8 at render time), so
+                  // we don't reset the user's groupwork choice on switch.
                   if (value === "Scotland") {
                     form.setValue("counterpartyType", "LocalAuthority", {
                       shouldValidate: true,
                     });
-                    form.setValue("includeGroupwork", true);
-                  } else {
-                    form.setValue("includeGroupwork", false);
                   }
                 }}
                 className="flex flex-col gap-2"

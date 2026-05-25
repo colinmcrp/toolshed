@@ -117,6 +117,18 @@ describe("conditional content removal", () => {
     ).not.toMatch(/Year 7 and Year 8/);
   });
 
+  it("rewrites the junior groupwork clause to Y7/Y8 in England when includeGroupwork is true", () => {
+    const text = renderText({ ...englandSchoolIntake, includeGroupwork: true });
+    // Sentence template: "There is {article} {range} groupwork programme ..."
+    expect(text).toMatch(/There is a Year 7 and Year 8 groupwork programme/);
+    expect(text).not.toMatch(/S1 and S2/);
+  });
+
+  it("keeps the Scottish junior groupwork wording with 'an S1 and S2'", () => {
+    const text = renderText(loadIntake("sample-scotland.json"));
+    expect(text).toMatch(/There is an S1 and S2 groupwork programme/);
+  });
+
   it("omits criminal record content when includeCriminalRecord is false", () => {
     const text = renderText({ ...englandSchoolIntake, includeCriminalRecord: false });
     expect(text).not.toMatch(/criminal record/i);

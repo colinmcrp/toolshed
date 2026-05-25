@@ -1,6 +1,17 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { useFormContext } from "react-hook-form";
+import { Check, ChevronsUpDown } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import {
   FormControl,
   FormDescription,
@@ -10,8 +21,15 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
+import { localAuthoritiesFor } from "@/lib/dsa-builder/local-authorities";
 import type { Intake } from "@/lib/dsa-builder/schema";
 
 type Field = {
@@ -103,6 +121,91 @@ function FieldGrid({ fields }: { fields: Field[] }) {
   );
 }
 
+function LocalAuthorityPicker() {
+  const form = useFormContext<Intake>();
+  const jurisdiction = form.watch("jurisdiction");
+  const legalName = form.watch("counterparty.legalName") ?? "";
+  const [open, setOpen] = useState(false);
+
+  const authorities = useMemo(
+    () => localAuthoritiesFor(jurisdiction),
+    [jurisdiction],
+  );
+  const matched = useMemo(
+    () => authorities.find((a) => a.name === legalName),
+    [authorities, legalName],
+  );
+
+  return (
+    <FormItem className="sm:col-span-2">
+      <FormLabel>Pick from {jurisdiction} local authorities</FormLabel>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            role="combobox"
+            aria-expanded={open}
+            className={cn(
+              "w-full justify-between font-normal",
+              !matched && "text-muted-foreground",
+            )}
+          >
+            {matched ? matched.name : "Search by name…"}
+            <ChevronsUpDown className="opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent
+          align="start"
+          className="w-(--radix-popover-trigger-width) p-0"
+        >
+          <Command>
+            <CommandInput placeholder="Search local authorities…" />
+            <CommandList>
+              <CommandEmpty>No matches.</CommandEmpty>
+              <CommandGroup>
+                {authorities.map((la) => (
+                  <CommandItem
+                    key={la.name}
+                    value={la.name}
+                    onSelect={() => {
+                      form.setValue("counterparty.legalName", la.name, {
+                        shouldValidate: true,
+                        shouldDirty: true,
+                      });
+                      form.setValue("counterparty.address", la.address, {
+                        shouldValidate: true,
+                        shouldDirty: true,
+                      });
+                      setOpen(false);
+                    }}
+                  >
+                    <Check
+                      className={cn(
+                        matched?.name === la.name ? "opacity-100" : "opacity-0",
+                      )}
+                    />
+                    <div className="flex flex-col">
+                      <span>{la.name}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {la.address}
+                      </span>
+                    </div>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+      <FormDescription className="text-xs">
+        Selecting an authority pre-fills the legal name and address — both
+        remain editable below.
+      </FormDescription>
+    </FormItem>
+  );
+}
+
 export function Step2Counterparty() {
   const form = useFormContext<Intake>();
   const isLA = form.watch("counterpartyType") === "LocalAuthority";
@@ -111,7 +214,12 @@ export function Step2Counterparty() {
   return (
     <div className="space-y-6">
       <Section title="Legal identity">
-        <FieldGrid fields={LEGAL_IDENTITY} />
+        <div className="grid gap-3 sm:grid-cols-2">
+          {isLA && <LocalAuthorityPicker />}
+          {LEGAL_IDENTITY.map((f) => (
+            <TextField key={f.name} field={f} />
+          ))}
+        </div>
       </Section>
 
       <Section

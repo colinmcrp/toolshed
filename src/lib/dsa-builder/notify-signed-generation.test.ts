@@ -121,4 +121,27 @@ describe("notifySignedGeneration", () => {
     ).resolves.toBeUndefined();
     expect(fetchMock).not.toHaveBeenCalled();
   });
+
+  it("swallows a fetch failure (network/timeout) and resolves", async () => {
+    const fetchMock = vi.fn(async () => {
+      throw new Error("timed out");
+    });
+    await expect(
+      notifySignedGeneration(
+        { userEmail: "someone@mcrpathways.org", intake: BASE_INTAKE },
+        { fetch: fetchMock as unknown as typeof fetch, now: () => FIXED_NOW },
+      ),
+    ).resolves.toBeUndefined();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("sets a fetch timeout via AbortSignal", async () => {
+    const fetchMock = makeFetch();
+    await notifySignedGeneration(
+      { userEmail: "someone@mcrpathways.org", intake: BASE_INTAKE },
+      { fetch: fetchMock as unknown as typeof fetch, now: () => FIXED_NOW },
+    );
+    const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    expect(init.signal).toBeInstanceOf(AbortSignal);
+  });
 });

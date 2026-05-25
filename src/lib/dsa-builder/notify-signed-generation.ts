@@ -54,19 +54,29 @@ export async function notifySignedGeneration(
     "signed copy, follow up with them.",
   ].join("\n");
 
-  const res = await deps.fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      from: "DSA Builder <onboarding@resend.dev>",
-      to: OWNER_EMAIL,
-      subject,
-      text: body,
-    }),
-  });
+  // 4-second timeout — Resend is normally well under 500ms, so 4s leaves
+  // generous headroom while ensuring a stuck request can't pin the
+  // Vercel function container open indefinitely.
+  let res: Response;
+  try {
+    res = await deps.fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: "DSA Builder <onboarding@resend.dev>",
+        to: OWNER_EMAIL,
+        subject,
+        text: body,
+      }),
+      signal: AbortSignal.timeout(4000),
+    });
+  } catch (err) {
+    console.warn("Resend POST failed (network or timeout):", err);
+    return;
+  }
 
   if (!res.ok) {
     const text = await res.text().catch(() => "(no body)");

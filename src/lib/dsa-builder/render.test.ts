@@ -163,3 +163,42 @@ describe("schedule structure differs by counterparty", () => {
     expect(text).toContain("seven (7)");
   });
 });
+
+describe("renderToBuffer — signatures", () => {
+  const FIXTURE_PNG = readFileSync(
+    resolve(FIXTURE_DIR, "signature-fixture.png"),
+  );
+
+  function countMediaImages(bytes: Uint8Array): number {
+    const zip = new PizZip(bytes);
+    return Object.keys(zip.files).filter((name) =>
+      /^word\/media\/.+\.(png|jpg|jpeg|gif)$/i.test(name),
+    ).length;
+  }
+
+  it("inserts both images into word/media/ when both buffers are supplied", () => {
+    const intake = loadIntake("sample-scotland.json");
+    const baseline = renderToBuffer(TEMPLATE, buildContext(intake));
+    const signed = renderToBuffer(TEMPLATE, buildContext(intake), {
+      signatoryImage: FIXTURE_PNG,
+      witnessImage: FIXTURE_PNG,
+    });
+    expect(countMediaImages(signed)).toBe(countMediaImages(baseline) + 2);
+  });
+
+  it("inserts no extra images when both buffers are absent", () => {
+    const intake = loadIntake("sample-scotland.json");
+    const baseline = renderToBuffer(TEMPLATE, buildContext(intake));
+    const unsigned = renderToBuffer(TEMPLATE, buildContext(intake), {});
+    expect(countMediaImages(unsigned)).toBe(countMediaImages(baseline));
+  });
+
+  it("rejects stray image tokens after rendering unsigned", () => {
+    const intake = loadIntake("sample-scotland.json");
+    const bytes = renderToBuffer(TEMPLATE, buildContext(intake), {});
+    const text = extractDocxText(bytes);
+    expect(text).not.toMatch(/\{%mcr/);
+    expect(text).not.toMatch(/\{#mcrHas/);
+    expect(text).not.toMatch(/\{\/mcrHas/);
+  });
+});

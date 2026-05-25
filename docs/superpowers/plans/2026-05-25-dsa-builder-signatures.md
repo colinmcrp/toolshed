@@ -43,40 +43,132 @@
 
 ---
 
-## Task 1: Edit the template and install the image module
+## Task 1: Bake placeholders into the template and install the image module
 
 **Files:**
-- Modify: `public/MCR_DSA_Master_Template.docx` (manual, in Word)
+- Create: `scripts/dsa-builder/bake-signature-placeholders.cjs`
+- Modify: `public/MCR_DSA_Master_Template.docx` (via the script)
 - Modify: `package.json`, `package-lock.json`
 
-- [ ] **Step 1: Add the two image placeholders to the master template**
+- [ ] **Step 1: Write the placeholder-bake script**
 
-The implementer (the human running the plan) opens `public/MCR_DSA_Master_Template.docx` in Word and:
+Following the same pattern as `bake-logo-into-template.cjs`, this script idempotently inserts two new paragraphs into `word/document.xml`: one containing the conditional-section-wrapped signatory image placeholder immediately before the paragraph holding `{mcr.signatoryName}`, and the equivalent for the witness. Editing the binary docx directly avoids Word's smart-quote autocorrect breaking the brace delimiters.
 
-1. Finds the MCR signing block (the block containing `{mcr.signatoryName}` and `{mcr.signatoryPosition}`).
-2. Adds a new empty paragraph **above** the line that currently shows the signatory's printed name, and types exactly (one line, no Word autocorrect quotes, no smart formatting):
-   ```
-   {#mcrHasSignatory}{%mcrSignatoryImage}{/mcrHasSignatory}
-   ```
-3. Repeats in the MCR witness block (the one with `{mcr.witnessName}`):
-   ```
-   {#mcrHasWitness}{%mcrWitnessImage}{/mcrHasWitness}
-   ```
-4. Saves and closes Word.
+Create `scripts/dsa-builder/bake-signature-placeholders.cjs`:
 
-If Word converts `{` or `}` to smart braces, type the placeholders in another editor and paste, then Cmd-Z the autocorrect.
+```js
+#!/usr/bin/env node
+// Bakes two new conditional-section + image-placeholder paragraphs into
+// the master DSA template — one above the MCR signatory's printed name,
+// one above the MCR witness's. The {%...} tag is consumed by the
+// docxtemplater image module at render time; the surrounding
+// {#mcrHasSignatory}...{/mcrHasSignatory} guarantees the whole paragraph
+// drops out when no signature image is supplied.
+//
+// Idempotent — running twice is a no-op. Re-run after replacing
+// public/MCR_DSA_Master_Template.docx with a new version from Word.
+//
+//   node scripts/dsa-builder/bake-signature-placeholders.cjs
 
-After saving, run:
+const PizZip = require("pizzip");
+const { readFileSync, writeFileSync } = require("node:fs");
+const { resolve } = require("node:path");
 
-```bash
-node scripts/dsa-builder/bake-logo-into-template.cjs
+const REPO_ROOT = resolve(__dirname, "..", "..");
+const TEMPLATE_PATH = resolve(REPO_ROOT, "public", "MCR_DSA_Master_Template.docx");
+
+const PLACEHOLDERS = [
+  {
+    anchor: "{mcr.signatoryName}",
+    placeholder:
+      "{#mcrHasSignatory}{%mcrSignatoryImage}{/mcrHasSignatory}",
+    name: "signatory",
+  },
+  {
+    anchor: "{mcr.witnessName}",
+    placeholder:
+      "{#mcrHasWitness}{%mcrWitnessImage}{/mcrHasWitness}",
+    name: "witness",
+  },
+];
+
+// A minimal paragraph wrapping a single run with a single text node. The
+// template uses Word's default body style, so no rPr/pPr is needed.
+function paragraphXml(text) {
+  return (
+    "<w:p>" +
+    "<w:r><w:t xml:space=\"preserve\">" +
+    text +
+    "</w:t></w:r>" +
+    "</w:p>"
+  );
+}
+
+// Word splits a typed token like {mcr.signatoryName} across multiple
+// <w:r> runs. We need the <w:p> that contains all of the run fragments
+// concatenated; then we insert a new <w:p> immediately before its open
+// tag. Uses matchAll so we can step through every paragraph in order.
+function findParagraphStart(xml, anchor) {
+  const paraRe = /<w:p\b[^>]*>([\s\S]*?)<\/w:p>/g;
+  for (const match of xml.matchAll(paraRe)) {
+    const inner = match[1];
+    const text = inner.replace(/<[^>]+>/g, "");
+    if (text.includes(anchor)) return match.index;
+  }
+  return -1;
+}
+
+const buf = readFileSync(TEMPLATE_PATH);
+const zip = new PizZip(buf);
+let documentXml = zip.file("word/document.xml").asText();
+
+const inserted = [];
+for (const { anchor, placeholder, name } of PLACEHOLDERS) {
+  if (documentXml.includes(placeholder)) {
+    console.log(`${name} placeholder already present — skipping`);
+    continue;
+  }
+  const idx = findParagraphStart(documentXml, anchor);
+  if (idx === -1) {
+    throw new Error(
+      `Could not locate <w:p> containing anchor ${anchor} for ${name}`,
+    );
+  }
+  documentXml =
+    documentXml.slice(0, idx) + paragraphXml(placeholder) + documentXml.slice(idx);
+  inserted.push(name);
+}
+
+if (inserted.length === 0) {
+  console.log("nothing to do");
+  process.exit(0);
+}
+
+zip.file("word/document.xml", documentXml);
+const out = zip.generate({ type: "nodebuffer", compression: "DEFLATE" });
+writeFileSync(TEMPLATE_PATH, out);
+console.log(
+  `inserted ${inserted.join(", ")} placeholder paragraph(s); was ${buf.length} bytes, now ${out.length} bytes`,
+);
 ```
 
-Expected output: `logo already baked into template — nothing to do` (the script is idempotent and the logo is already inside).
+- [ ] **Step 2: Run the script**
 
-- [ ] **Step 2: Verify the placeholders made it in**
+```bash
+node scripts/dsa-builder/bake-signature-placeholders.cjs
+```
 
-Run:
+Expected output (first run): `inserted signatory, witness placeholder paragraph(s); was N bytes, now M bytes`.
+
+Run again to verify idempotency:
+
+```bash
+node scripts/dsa-builder/bake-signature-placeholders.cjs
+```
+
+Expected: `signatory placeholder already present — skipping`, same for witness, then `nothing to do`.
+
+- [ ] **Step 3: Verify the placeholders made it in**
 
 ```bash
 unzip -p public/MCR_DSA_Master_Template.docx word/document.xml | grep -oE '\{[#%/]?mcr[A-Za-z]+\}' | sort -u
@@ -93,11 +185,15 @@ Expected output (order may differ):
 {/mcrHasWitness}
 ```
 
-If any of the six tokens is missing, re-open in Word and retry Step 1 — likely smart-quote conversion broke a brace.
+- [ ] **Step 4: Confirm the logo is still baked in**
 
-- [ ] **Step 3: Install the image module**
+```bash
+node scripts/dsa-builder/bake-logo-into-template.cjs
+```
 
-Run from repo root:
+Expected: `logo already baked into template — nothing to do`.
+
+- [ ] **Step 5: Install the image module**
 
 ```bash
 npm install docxtemplater-image-module-free
@@ -105,9 +201,7 @@ npm install docxtemplater-image-module-free
 
 Expected: package added, no peer-dep warnings against docxtemplater 3.68.7.
 
-- [ ] **Step 4: Type-check stays clean**
-
-Run:
+- [ ] **Step 6: Type-check stays clean**
 
 ```bash
 npx tsc --noEmit && npm run lint
@@ -115,11 +209,11 @@ npx tsc --noEmit && npm run lint
 
 Expected: both pass.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
-git add public/MCR_DSA_Master_Template.docx package.json package-lock.json
-git commit -m "DSA builder: add MCR signature image placeholders to template"
+git add scripts/dsa-builder/bake-signature-placeholders.cjs public/MCR_DSA_Master_Template.docx package.json package-lock.json
+git commit -m "DSA builder: bake MCR signature image placeholders into template"
 ```
 
 ---
@@ -713,58 +807,178 @@ git commit -m "DSA builder: render via server action with MCR signature injectio
 
 ---
 
-## Task 6: Remove the public signature PNGs
+## Task 6: Move signature PNGs out of `public/`
+
+The PNGs go to a local-only directory so the human implementer can later run the upload script (Task 7). The public copies are deleted.
 
 **Files:**
-- Delete: `public/dsa-builder/images/colin.png`
-- Delete: `public/dsa-builder/images/Sharon.png`
+- Delete (`git rm`): `public/dsa-builder/images/colin.png`, `public/dsa-builder/images/Sharon.png`
+- Create: `private/dsa-signatures/sharon-mcintyre.png` (moved bytes)
+- Create: `private/dsa-signatures/colin-adam.png` (moved bytes)
+- Create: `private/.gitignore`
 
-- [ ] **Step 1: Confirm no code references either path**
-
-Run:
+- [ ] **Step 1: Confirm no code references the public paths**
 
 ```bash
-grep -rn -E "images/(colin|Sharon)\.png" src/ public/ docs/ scripts/ 2>/dev/null || echo "no references"
+grep -rn -E "images/(colin|Sharon)\.png" src/ docs/ scripts/ 2>/dev/null || echo "no references"
 ```
 
-Expected: `no references`. If anything turns up, fix it first — they should have been migrated by earlier tasks.
+Expected: `no references`.
 
-- [ ] **Step 2: Delete the files**
+- [ ] **Step 2: Move the bytes to `private/dsa-signatures/`**
 
 ```bash
+mkdir -p private/dsa-signatures
+cp public/dsa-builder/images/Sharon.png private/dsa-signatures/sharon-mcintyre.png
+cp public/dsa-builder/images/colin.png private/dsa-signatures/colin-adam.png
 git rm public/dsa-builder/images/colin.png public/dsa-builder/images/Sharon.png
 ```
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 3: Add a `private/.gitignore`**
+
+Create `private/.gitignore`:
+
+```
+# Everything under private/ is local-only — never committed.
+*
+!.gitignore
+```
+
+- [ ] **Step 4: Verify the PNGs are gitignored**
 
 ```bash
+git check-ignore -v private/dsa-signatures/sharon-mcintyre.png private/dsa-signatures/colin-adam.png
+```
+
+Expected: both lines reference `private/.gitignore`.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add private/.gitignore
 git commit -m "DSA builder: remove publicly-served MCR signature PNGs"
 ```
 
+The `git rm` from Step 2 is included in the same commit.
+
 ---
 
-## Task 7: Upload signatures to the bucket (manual)
+## Task 7: Script to upload signatures to the bucket
 
-**This task does not produce code or a commit — it is a deployment step the implementer must do once, after Tasks 1–6 are merged, before users hit the new flow.**
+**Files:**
+- Create: `scripts/dsa-builder/upload-signatures-to-bucket.cjs`
 
-- [ ] **Step 1: Apply the migration to the target environment**
+- [ ] **Step 1: Write the upload script**
 
-Production: the next deploy that includes the migration in Task 4 will create the bucket automatically. For a local Supabase stack, the bucket exists after `npx supabase db reset`.
+Create `scripts/dsa-builder/upload-signatures-to-bucket.cjs`:
 
-- [ ] **Step 2: Upload the two PNGs**
+```js
+#!/usr/bin/env node
+// One-shot uploader: pushes the two MCR signature PNGs from
+// private/dsa-signatures/ into the dsa-signatures Supabase Storage bucket.
+//
+// Requires:
+//   NEXT_PUBLIC_SUPABASE_URL
+//   SUPABASE_SERVICE_ROLE_KEY
+//
+// Loads them from .env.local if present (matches the rest of the repo's
+// dev workflow).
+//
+//   node scripts/dsa-builder/upload-signatures-to-bucket.cjs
 
-Source files (the originals deleted in Task 6) are also in the implementer's local backup or in the previous git history. Recover them and re-upload to the new bucket:
+const { readFileSync, existsSync } = require("node:fs");
+const { resolve } = require("node:path");
 
-1. Open Supabase Studio for the project. Storage → buckets → `dsa-signatures`.
-2. Create folder `mcr/` if not auto-created.
-3. Upload Sharon's PNG as `mcr/sharon-mcintyre.png`.
-4. Upload Colin's PNG as `mcr/colin-adam.png`.
+const REPO_ROOT = resolve(__dirname, "..", "..");
 
-(If the originals are lost: `git show HEAD~N:public/dsa-builder/images/Sharon.png > /tmp/Sharon.png` where `N` is the depth back to before Task 6.)
+function loadEnvLocal() {
+  const path = resolve(REPO_ROOT, ".env.local");
+  if (!existsSync(path)) return;
+  for (const line of readFileSync(path, "utf8").split(/\r?\n/)) {
+    const m = line.match(/^([A-Z_][A-Z0-9_]*)\s*=\s*(.*)$/);
+    if (!m) continue;
+    const [, key, raw] = m;
+    if (process.env[key]) continue;
+    const value = raw.replace(/^['"]|['"]$/g, "");
+    process.env[key] = value;
+  }
+}
 
-- [ ] **Step 3: Confirm with a generate**
+loadEnvLocal();
 
-Open the dashboard `/dsa-builder` route, leave the MCR preset in place, generate, and open the resulting `.docx` — both signatures should appear.
+const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+if (!url || !key) {
+  console.error(
+    "Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY. " +
+      "Add them to .env.local or export them in your shell.",
+  );
+  process.exit(1);
+}
+
+const { createClient } = require("@supabase/supabase-js");
+const client = createClient(url, key, {
+  auth: { persistSession: false, autoRefreshToken: false },
+});
+
+const UPLOADS = [
+  {
+    local: resolve(REPO_ROOT, "private", "dsa-signatures", "sharon-mcintyre.png"),
+    remote: "mcr/sharon-mcintyre.png",
+  },
+  {
+    local: resolve(REPO_ROOT, "private", "dsa-signatures", "colin-adam.png"),
+    remote: "mcr/colin-adam.png",
+  },
+];
+
+(async () => {
+  for (const { local, remote } of UPLOADS) {
+    if (!existsSync(local)) {
+      console.error(`missing local source: ${local}`);
+      process.exit(1);
+    }
+    const bytes = readFileSync(local);
+    const { error } = await client.storage
+      .from("dsa-signatures")
+      .upload(remote, bytes, {
+        contentType: "image/png",
+        upsert: true,
+      });
+    if (error) {
+      console.error(`upload failed for ${remote}: ${error.message}`);
+      process.exit(1);
+    }
+    console.log(`uploaded ${remote} (${bytes.length} bytes)`);
+  }
+})();
+```
+
+- [ ] **Step 2: Commit the script**
+
+```bash
+git add scripts/dsa-builder/upload-signatures-to-bucket.cjs
+git commit -m "DSA builder: script to upload MCR signatures to private bucket"
+```
+
+- [ ] **Step 3: Run the upload (only after the migration in Task 4 has been applied to the target env)**
+
+Local Supabase: the migration is applied via `npx supabase db reset` or `supabase db push`. Production: by the next deploy.
+
+After the bucket exists in the target environment:
+
+```bash
+node scripts/dsa-builder/upload-signatures-to-bucket.cjs
+```
+
+Expected output:
+
+```
+uploaded mcr/sharon-mcintyre.png (N bytes)
+uploaded mcr/colin-adam.png (N bytes)
+```
+
+If this errors with `bucket not found`, the migration hasn't been applied — check the target Supabase project's storage buckets.
 
 ---
 

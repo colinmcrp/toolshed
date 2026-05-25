@@ -15,6 +15,14 @@ const eslintConfig = defineConfig([
     // DSA source materials — copied into public/ and src/lib by the DSA builder.
     "DSA/**",
   ]),
+  {
+    // CommonJS scripts under scripts/ legitimately use require(); they
+    // run with `node` directly, not as part of the Next.js bundle.
+    files: ["**/*.cjs"],
+    rules: {
+      "@typescript-eslint/no-require-imports": "off",
+    },
+  },
 ]);
 
 export default eslintConfig;

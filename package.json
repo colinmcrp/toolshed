@@ -21,6 +21,7 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "docxtemplater": "^3.68.7",
+    "docxtemplater-image-module-free": "^1.1.1",
     "file-saver": "^2.0.5",
     "lucide-react": "^0.563.0",
     "mime-types": "^3.0.2",

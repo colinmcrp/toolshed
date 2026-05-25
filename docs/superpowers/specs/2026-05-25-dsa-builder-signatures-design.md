@@ -50,16 +50,25 @@ and `reciept.webp` are left alone — only the two signatures move.)
 ## Template edits
 
 Two new placeholders are added **manually in Word** to
-`public/MCR_DSA_Master_Template.docx`:
+`public/MCR_DSA_Master_Template.docx`. Each is wrapped in a
+docxtemplater section so it is removed entirely when no signature
+is supplied — this avoids relying on the image module's
+null-collapse behaviour, which varies across versions:
 
-- `{%mcrSignatoryImage}` — on its own line directly above the printed
-  signatory name line in the MCR signing block.
-- `{%mcrWitnessImage}` — same, in the MCR witness block.
+- Above the MCR signatory name line, on its own paragraph:
+  ```
+  {#mcrHasSignatory}{%mcrSignatoryImage}{/mcrHasSignatory}
+  ```
+- Above the MCR witness name line, on its own paragraph:
+  ```
+  {#mcrHasWitness}{%mcrWitnessImage}{/mcrHasWitness}
+  ```
 
-The `%` prefix is the docxtemplater image-module convention. When the
-value supplied for that tag is `null`/`undefined` the module collapses
-the run to nothing, leaving a blank line above the printed name —
-matching today's appearance for unsigned drafts.
+The `%` prefix is the docxtemplater image-module convention. The
+surrounding `{#flag}…{/flag}` is the same conditional-section pattern
+the template already uses for `crim`, `group`, `fund`, `isLA`. When
+`mcrHasSignatory` is false, the whole paragraph is dropped; when true,
+docxtemplater leaves the image module to substitute the binary.
 
 After adding the tags in Word, re-run
 `node scripts/dsa-builder/bake-logo-into-template.cjs` so the logo
@@ -134,18 +143,24 @@ export function renderToBuffer(
 
 The `ImageModule` is **always** configured, because the template
 carries `{%mcrSignatoryImage}` / `{%mcrWitnessImage}` placeholders
-that docxtemplater can't resolve without the module. `renderToBuffer`
-merges `images.signatoryImage` / `images.witnessImage` into the
-context dict under the keys `mcrSignatoryImage` / `mcrWitnessImage`
-immediately before calling `doc.render`. When a key is null the image
-module returns `null` from `getImage` and the placeholder collapses
-to nothing.
+that docxtemplater can't resolve without the module. Before calling
+`doc.render`, `renderToBuffer` merges four keys into the context dict:
+
+- `mcrHasSignatory: !!images?.signatoryImage`
+- `mcrHasWitness: !!images?.witnessImage`
+- `mcrSignatoryImage: images?.signatoryImage` (only read when the
+  section is present, so the value can be `undefined` for the false
+  branch and never hits `getImage`)
+- `mcrWitnessImage: images?.witnessImage`
 
 `getSize` uses per-tag dimensions to preserve each signature's
 natural aspect ratio:
 
 - Sharon (1954×805, ≈2.43:1) → 200×82 px
 - Colin (1716×826, ≈2.08:1) → 200×96 px
+
+The `getSize` callback receives the `tagName` so it can switch on
+`"mcrSignatoryImage"` vs `"mcrWitnessImage"`.
 
 `renderToBuffer` stays pure — no network, no fs. It accepts buffers
 and returns buffers, so tests pass fixture PNGs directly.

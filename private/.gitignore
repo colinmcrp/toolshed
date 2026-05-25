@@ -1,0 +1,3 @@
+# Everything under private/ is local-only — never committed.
+*
+!.gitignore

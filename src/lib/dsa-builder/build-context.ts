@@ -92,6 +92,14 @@ export function buildContext(intake: Intake): RenderContext {
   const witName = willSign ? cp.witnessName : "";
   const witDate = willSign ? cp.witnessDate : "";
   const witAddress = willSign ? cp.witnessAddress : "";
+  const repJobTitle = willSign ? cp.repJobTitle : "";
+  const repAddress = willSign ? cp.repAddress : "";
+  const repEmail = willSign ? cp.repEmail : "";
+  const repPhone = willSign ? cp.repPhone : "";
+  const escalationJobTitle = willSign ? cp.escalationJobTitle : "";
+  const escalationAddress = willSign ? cp.escalationAddress : "";
+  const escalationEmail = willSign ? cp.escalationEmail : "";
+  const escalationPhone = willSign ? cp.escalationPhone : "";
 
   const counterparty: CounterpartyContext = {
     ...cp,
@@ -107,14 +115,14 @@ export function buildContext(intake: Intake): RenderContext {
     witnessPosition: withInsertFallback(cp.witnessPosition),
     witnessDate: withInsertFallback(formatDate(witDate)),
     witnessAddress: withInsertFallback(witAddress || cp.address),
-    repJobTitle: withInsertFallback(cp.repJobTitle),
-    repAddress: withInsertFallback(cp.repAddress),
-    repEmail: withInsertFallback(cp.repEmail),
-    repPhone: withInsertFallback(cp.repPhone),
-    escalationJobTitle: withInsertFallback(cp.escalationJobTitle),
-    escalationAddress: withInsertFallback(cp.escalationAddress),
-    escalationEmail: withInsertFallback(cp.escalationEmail),
-    escalationPhone: withInsertFallback(cp.escalationPhone),
+    repJobTitle: withInsertFallback(repJobTitle),
+    repAddress: withInsertFallback(repAddress),
+    repEmail: withInsertFallback(repEmail),
+    repPhone: withInsertFallback(repPhone),
+    escalationJobTitle: withInsertFallback(escalationJobTitle),
+    escalationAddress: withInsertFallback(escalationAddress),
+    escalationEmail: withInsertFallback(escalationEmail),
+    escalationPhone: withInsertFallback(escalationPhone),
     coveredSchoolsSites:
       cp.coveredSchoolsSites ||
       "[list the schools and alternative provision sites covered by this Agreement]",

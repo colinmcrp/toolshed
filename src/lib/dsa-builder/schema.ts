@@ -11,35 +11,33 @@ export const CounterpartyType = z.enum([
 ]);
 export type CounterpartyType = z.infer<typeof CounterpartyType>;
 
-const emailOrEmpty = z
-  .string()
-  .optional()
-  .default("")
-  .refine((v) => v === "" || z.string().email().safeParse(v).success, {
-    message: "Must be a valid email",
-  });
+// Email check is enforced at the IntakeSchema level (see below) so that it
+// can be conditional on counterpartyWillSign — when the toggle is off, the
+// contact UI is hidden and any stale value would otherwise silently block
+// the form with no visible error.
+const optionalString = z.string().optional().default("");
 
 export const CounterpartySchema = z.object({
   legalName: z.string().min(1, "Required"),
   shortName: z.string().min(1, "Required"),
   address: z.string().min(1, "Required"),
-  signatoryName: z.string().optional().default(""),
-  signatoryPosition: z.string().optional().default(""),
-  signatoryDate: z.string().optional().default(""),
-  signatoryPlace: z.string().optional().default(""),
-  witnessName: z.string().optional().default(""),
-  witnessPosition: z.string().optional().default(""),
-  witnessDate: z.string().optional().default(""),
-  witnessAddress: z.string().optional().default(""),
-  repJobTitle: z.string().optional().default(""),
-  repAddress: z.string().optional().default(""),
-  repEmail: emailOrEmpty,
-  repPhone: z.string().optional().default(""),
-  escalationJobTitle: z.string().optional().default(""),
-  escalationAddress: z.string().optional().default(""),
-  escalationEmail: emailOrEmpty,
-  escalationPhone: z.string().optional().default(""),
-  coveredSchoolsSites: z.string().optional().default(""),
+  signatoryName: optionalString,
+  signatoryPosition: optionalString,
+  signatoryDate: optionalString,
+  signatoryPlace: optionalString,
+  witnessName: optionalString,
+  witnessPosition: optionalString,
+  witnessDate: optionalString,
+  witnessAddress: optionalString,
+  repJobTitle: optionalString,
+  repAddress: optionalString,
+  repEmail: optionalString,
+  repPhone: optionalString,
+  escalationJobTitle: optionalString,
+  escalationAddress: optionalString,
+  escalationEmail: optionalString,
+  escalationPhone: optionalString,
+  coveredSchoolsSites: optionalString,
 });
 export type Counterparty = z.infer<typeof CounterpartySchema>;
 
@@ -90,5 +88,22 @@ export const IntakeSchema = z
       message:
         "List the schools / sites covered when the counterparty is a Local Authority.",
     },
-  );
+  )
+  .superRefine((d, ctx) => {
+    // Skip when the counterparty will fill in their own details — contact
+    // fields are hidden in the UI and blanked at render, so stale values
+    // (including ones the user typed and then toggled away from) must not
+    // block the form.
+    if (d.counterpartyWillSign === false) return;
+    for (const key of ["repEmail", "escalationEmail"] as const) {
+      const v = d.counterparty[key];
+      if (v && !z.string().email().safeParse(v).success) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["counterparty", key],
+          message: "Must be a valid email",
+        });
+      }
+    }
+  });
 export type Intake = z.infer<typeof IntakeSchema>;

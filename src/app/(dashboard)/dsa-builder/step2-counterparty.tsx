@@ -233,12 +233,13 @@ export function Step2Counterparty() {
             <FormItem className="flex items-start justify-between gap-4 rounded-lg border border-border bg-muted/30 p-4">
               <div className="space-y-1">
                 <FormLabel className="text-sm">
-                  Collect counterparty signing details now
+                  Collect counterparty signing and contact details now
                 </FormLabel>
                 <FormDescription className="text-xs">
                   Turn off if the counterparty will fill in their name, date,
-                  witness etc. by hand at signing. The generated DSA will show{" "}
-                  <code>[insert]</code> placeholders for them to complete.
+                  witness and day-to-day contacts by hand at signing. The
+                  generated DSA will show <code>[insert]</code> placeholders
+                  for them to complete.
                 </FormDescription>
               </div>
               <FormControl>
@@ -253,9 +254,11 @@ export function Step2Counterparty() {
         {willSign && <FieldGrid fields={SIGNATORY} />}
       </Section>
 
-      <Section title="Day-to-day contacts">
-        <FieldGrid fields={CONTACTS} />
-      </Section>
+      {willSign && (
+        <Section title="Day-to-day contacts">
+          <FieldGrid fields={CONTACTS} />
+        </Section>
+      )}
 
       {isLA && (
         <FormField

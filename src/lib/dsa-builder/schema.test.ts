@@ -65,4 +65,20 @@ describe("IntakeSchema", () => {
     });
     expect(result.success).toBe(false);
   });
+
+  it("ignores invalid contact emails when counterpartyWillSign is false", () => {
+    // The contacts UI is hidden in this case, so a stale invalid value in
+    // form state must not silently block the form.
+    const result = IntakeSchema.safeParse({
+      jurisdiction: "England",
+      counterpartyType: "AcademyOrFreeSchool",
+      counterpartyWillSign: false,
+      counterparty: {
+        ...baseCounterparty,
+        repEmail: "not-an-email",
+        escalationEmail: "still-not-an-email",
+      },
+    });
+    expect(result.success).toBe(true);
+  });
 });

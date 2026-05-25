@@ -167,7 +167,7 @@ function LocalAuthorityPicker() {
                 {authorities.map((la) => (
                   <CommandItem
                     key={la.name}
-                    value={la.name}
+                    value={`${la.name} ${la.address}`}
                     onSelect={() => {
                       form.setValue("counterparty.legalName", la.name, {
                         shouldValidate: true,

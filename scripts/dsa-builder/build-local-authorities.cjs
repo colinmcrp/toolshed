@@ -71,11 +71,11 @@ ${fmt(england)}
 ] as const;
 
 export function localAuthoritiesFor(
-  jurisdiction: "Scotland" | "England",
+  jurisdiction?: "Scotland" | "England" | null,
 ): readonly LocalAuthority[] {
-  return jurisdiction === "Scotland"
-    ? SCOTLAND_LOCAL_AUTHORITIES
-    : ENGLAND_LOCAL_AUTHORITIES;
+  if (jurisdiction === "Scotland") return SCOTLAND_LOCAL_AUTHORITIES;
+  if (jurisdiction === "England") return ENGLAND_LOCAL_AUTHORITIES;
+  return [];
 }
 `;
 

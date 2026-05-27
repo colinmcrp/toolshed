@@ -119,7 +119,14 @@ const CHARITY_EDITS = [
 function applyEdits(templatePath, edits) {
   const buf = readFileSync(templatePath);
   const zip = new PizZip(buf);
-  let xml = zip.file("word/document.xml").asText();
+  const docXmlFile = zip.file("word/document.xml");
+  if (!docXmlFile) {
+    throw new Error(
+      `${templatePath}: word/document.xml is missing — file is not a ` +
+        `valid .docx, or PizZip failed to read it.`,
+    );
+  }
+  let xml = docXmlFile.asText();
   const before = xml.length;
   const summary = [];
 

@@ -1,4 +1,4 @@
-import type { Counterparty, Intake } from "./schema";
+import type { Counterparty, Intake, Jurisdiction } from "./schema";
 import {
   COUNTERPARTY_DESCRIPTION_DEFAULTS,
   COUNTERPARTY_INCORPORATING_DEFAULTS,
@@ -6,6 +6,24 @@ import {
   MCR_DEFAULTS,
   SCOTLAND_DEFAULTS,
 } from "./defaults";
+
+// Exhaustive switch so a future Jurisdiction enum addition forces an update
+// here at compile time. The previous `isScotland ? SCOTLAND : ENGLAND`
+// ternary silently routed unknown values to ENGLAND_DEFAULTS.
+function pickJurisDefaults(
+  jurisdiction: Jurisdiction,
+): typeof SCOTLAND_DEFAULTS | typeof ENGLAND_DEFAULTS {
+  switch (jurisdiction) {
+    case "Scotland":
+      return SCOTLAND_DEFAULTS;
+    case "England":
+      return ENGLAND_DEFAULTS;
+    default: {
+      const _exhaustive: never = jurisdiction;
+      throw new Error(`Unsupported jurisdiction: ${String(_exhaustive)}`);
+    }
+  }
+}
 
 type LaSchoolCounterpartyContext = Counterparty & {
   incorporatingStatute: string;
@@ -60,8 +78,13 @@ export type RenderContext = LaSchoolRenderContext | CharityRenderContext;
 
 const INSERT = "[insert]";
 
+// Trims before the empty check so a whitespace-only value (e.g. an admin
+// endpoint that posted "   ") falls back to [insert] instead of silently
+// rendering as a typographic gap inside prose clauses like the English
+// Programme Consent capacity test.
 function withInsertFallback(value: string | undefined): string {
-  return value && value.length > 0 ? value : INSERT;
+  const trimmed = value?.trim() ?? "";
+  return trimmed.length > 0 ? trimmed : INSERT;
 }
 
 const MONTHS = [
@@ -155,7 +178,7 @@ export function buildLaSchoolContext(intake: Intake): LaSchoolRenderContext {
   const isEngland = intake.jurisdiction === "England";
   const isLA = intake.counterpartyType === "LocalAuthority";
   const isSchool = !isLA;
-  const jurisDefaults = isScotland ? SCOTLAND_DEFAULTS : ENGLAND_DEFAULTS;
+  const jurisDefaults = pickJurisDefaults(intake.jurisdiction);
 
   const cp = intake.counterparty;
   const incorporatingKey = isLA
@@ -215,7 +238,7 @@ export function buildLaSchoolContext(intake: Intake): LaSchoolRenderContext {
 export function buildCharityContext(intake: Intake): CharityRenderContext {
   const isScotland = intake.jurisdiction === "Scotland";
   const isEngland = intake.jurisdiction === "England";
-  const jurisDefaults = isScotland ? SCOTLAND_DEFAULTS : ENGLAND_DEFAULTS;
+  const jurisDefaults = pickJurisDefaults(intake.jurisdiction);
   const base = buildCounterpartyBase(intake);
   return {
     isScotland,

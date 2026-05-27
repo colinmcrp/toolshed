@@ -62,4 +62,11 @@ const bytes = renderToBuffer(TEMPLATE, buildContext(intake), {
 writeFileSync(OUTPUT, bytes);
 console.log(`Wrote ${OUTPUT} (${bytes.length} bytes)`);
 
-execFileSync("open", ["-a", "Pages", OUTPUT]);
+// macOS-specific convenience — the file is written first so a missing
+// Pages.app (or running on a non-macOS host) leaves the preview in place
+// rather than failing the whole script.
+try {
+  execFileSync("open", ["-a", "Pages", OUTPUT]);
+} catch {
+  console.log(`(Could not auto-open ${OUTPUT}; open it manually.)`);
+}

@@ -311,8 +311,17 @@ describe("MCR Pathways logo is baked into the template", () => {
 });
 
 describe("template token boundaries", () => {
+  // Mirrors render.ts:SCANNED_PART_RE so a stray mediator-token typo in a
+  // header/footer/footnote — not just document.xml — is caught here too.
+  const SCANNED_PART_RE =
+    /^word\/(document|header\d*|footer\d*|footnotes|endnotes|comments)\.xml$/;
+
   function templateXml(template: Buffer): string {
-    return new PizZip(template).file("word/document.xml")?.asText() ?? "";
+    const zip = new PizZip(template);
+    return Object.keys(zip.files)
+      .filter((name) => SCANNED_PART_RE.test(name))
+      .map((name) => zip.file(name)?.asText() ?? "")
+      .join("\n");
   }
 
   // Both context shapes carry both mediator-fallback tokens for symmetry,

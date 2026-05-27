@@ -100,6 +100,9 @@ export function Wizard() {
     defaultValues: buildDefaultValues(),
     mode: "onChange",
   });
+  // Subscribe before the final step is mounted so the full-form trigger that
+  // opens the review step can update the button state on first arrival.
+  const { isSubmitting, isValid } = form.formState;
 
   const onSubmit = form.handleSubmit(async (data) => {
     try {
@@ -164,9 +167,13 @@ export function Wizard() {
             <Button
               type="button"
               onClick={async () => {
-                const fields = STEP_FIELDS[step];
-                const valid = await form.trigger(fields);
-                if (valid) setStep((s) => Math.min(LAST_STEP, s + 1));
+                const valid =
+                  step === LAST_STEP - 1
+                    ? await form.trigger()
+                    : await form.trigger(STEP_FIELDS[step]);
+                if (valid) {
+                  setStep((s) => Math.min(LAST_STEP, s + 1));
+                }
               }}
             >
               Next
@@ -175,9 +182,9 @@ export function Wizard() {
             <Button
               type="button"
               onClick={onSubmit}
-              disabled={!form.formState.isValid || form.formState.isSubmitting}
+              disabled={!isValid || isSubmitting}
             >
-              {form.formState.isSubmitting ? "Generating…" : "Generate DSA"}
+              {isSubmitting ? "Generating…" : "Generate DSA"}
             </Button>
           )}
         </div>

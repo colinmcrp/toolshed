@@ -4,6 +4,7 @@ import type { Intake } from "./schema";
 
 const BASE_INTAKE: Intake = {
   jurisdiction: "Scotland",
+  useEnglishLegalSystem: false,
   counterpartyType: "LocalAuthority",
   counterpartyWillSign: true,
   includeCriminalRecord: true,

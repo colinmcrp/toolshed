@@ -3,6 +3,7 @@
 import { useFormContext } from "react-hook-form";
 import {
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -10,6 +11,7 @@ import {
 } from "@/components/ui/form";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import type { Intake } from "@/lib/dsa-builder/schema";
 import { ScotlandPathwayHelp } from "./scotland-pathway-dialog";
 
@@ -56,6 +58,13 @@ export function Step1Jurisdiction() {
                         shouldValidate: true,
                       });
                     }
+                    // Scotland intakes can't elect English law (schema
+                    // refine rejects it). Force the flag off so a user
+                    // who toggled it on for an English intake and then
+                    // switched jurisdiction doesn't carry stale state.
+                    form.setValue("useEnglishLegalSystem", false, {
+                      shouldValidate: true,
+                    });
                   }
                 }}
                 className="flex flex-col gap-2"
@@ -127,6 +136,39 @@ export function Step1Jurisdiction() {
           </FormItem>
         )}
       />
+
+      {/* English partners default to Scots law on the executed DSA (matches
+          the majority of existing partnerships). This switch is shown only
+          for England intakes; switching back to Scotland resets it to off
+          (the schema refine would otherwise reject the form). */}
+      {!isScotland && (
+        <FormField
+          control={form.control}
+          name="useEnglishLegalSystem"
+          render={({ field }) => (
+            <FormItem className="flex items-start justify-between gap-4 rounded-lg border border-border p-4">
+              <div className="space-y-1">
+                <FormLabel className="text-sm">
+                  Use the English legal system
+                </FormLabel>
+                <FormDescription className="text-xs">
+                  Off (default): governing law is Scots law, disputes go to
+                  the Scottish Courts, and the Programme Consent capacity
+                  test cites the Age of Legal Capacity (Scotland) Act 1991.
+                  On: swaps to England and Wales, the Courts of England and
+                  Wales, the CEDR mediator fallback, and Gillick competence.
+                </FormDescription>
+              </div>
+              <FormControl>
+                <Switch
+                  checked={!!field.value}
+                  onCheckedChange={field.onChange}
+                />
+              </FormControl>
+            </FormItem>
+          )}
+        />
+      )}
     </div>
   );
 }

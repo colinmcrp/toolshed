@@ -1,5 +1,10 @@
 import type { CounterpartyType } from "./schema";
 
+// Geographic defaults — keyed by where the counterparty operates.
+// Drive language tied to the physical location of the schools / charity
+// (FOI act, statutory anchor, education vocabulary, year-group ranges).
+// Independent of which legal system governs the agreement itself —
+// see SCOTS_LAW_DEFAULTS / ENGLISH_LAW_DEFAULTS for that.
 export const SCOTLAND_DEFAULTS = {
   foi: { short: "FOISA", full: "Freedom of Information (Scotland) Act 2002" },
   childrenAct: "Children (Scotland) Act 1995",
@@ -12,15 +17,6 @@ export const SCOTLAND_DEFAULTS = {
   yearGroupSeniorRange: "S3 and upwards",
   yearGroupJuniorRange: "S1 and S2",
   yearGroupJuniorArticle: "an",
-  governingLawCountry: "Scotland",
-  governingLawCourts: "Scottish Courts",
-  // LA/school keeps the "or the equivalent office holder in the local
-  // authority area" tail; charity track does not (per the executed Sept-2025
-  // National DSA). Two tokens so the templates can drop in the right one.
-  mediatorFallbackLaSchool:
-    "chosen by the Dean of the Royal Faculty of Procurators in Glasgow or the equivalent office holder in the local authority area",
-  mediatorFallbackCharity:
-    "chosen by the Dean of the Royal Faculty of Procurators in Glasgow",
 } as const;
 
 export const ENGLAND_DEFAULTS = {
@@ -35,6 +31,26 @@ export const ENGLAND_DEFAULTS = {
   yearGroupSeniorRange: "Year 9 and upwards",
   yearGroupJuniorRange: "Year 7 and Year 8",
   yearGroupJuniorArticle: "a",
+} as const;
+
+// Legal-system defaults — keyed by which body of law governs the agreement.
+// Independent of where the counterparty operates: most English-partner DSAs
+// today elect Scots law (matches MCR's home jurisdiction), so an English
+// partnership running under English law is a deliberate opt-in via
+// IntakeSchema.useEnglishLegalSystem.
+export const SCOTS_LAW_DEFAULTS = {
+  governingLawCountry: "Scotland",
+  governingLawCourts: "Scottish Courts",
+  // LA/school keeps the "or the equivalent office holder in the local
+  // authority area" tail; charity track does not (per the executed Sept-2025
+  // National DSA). Two tokens so the templates can drop in the right one.
+  mediatorFallbackLaSchool:
+    "chosen by the Dean of the Royal Faculty of Procurators in Glasgow or the equivalent office holder in the local authority area",
+  mediatorFallbackCharity:
+    "chosen by the Dean of the Royal Faculty of Procurators in Glasgow",
+} as const;
+
+export const ENGLISH_LAW_DEFAULTS = {
   governingLawCountry: "England and Wales",
   governingLawCourts: "Courts of England and Wales",
   mediatorFallbackLaSchool:

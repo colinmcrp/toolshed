@@ -29,6 +29,7 @@ const baseCounterparty = {
 
 const scotlandIntake: Intake = {
   jurisdiction: "Scotland",
+  useEnglishLegalSystem: false,
   counterpartyType: "LocalAuthority",
   counterpartyWillSign: true,
   includeCriminalRecord: true,
@@ -61,7 +62,7 @@ describe("buildContext", () => {
     );
   });
 
-  it("derives England + school flags", () => {
+  it("derives England + school flags (Scots law by default)", () => {
     const ctx = buildLaSchoolContext({
       ...scotlandIntake,
       jurisdiction: "England",
@@ -73,12 +74,33 @@ describe("buildContext", () => {
     expect(ctx.isSchool).toBe(true);
     expect(ctx.foi.short).toBe("FOIA");
     expect(ctx.schedulePartsCount).toBe("seven (7)");
+    // Default for English partners: Scots law (matches the majority case).
+    expect(ctx.isScotsLaw).toBe(true);
+    expect(ctx.isEnglishLaw).toBe(false);
+    expect(ctx.governingLawCountry).toBe("Scotland");
+    expect(ctx.governingLawCourts).toBe("Scottish Courts");
+    expect(ctx.mediatorFallbackLaSchool).toMatch(
+      /Dean of the Royal Faculty of Procurators in Glasgow/,
+    );
+  });
+
+  it("derives English-law flags when useEnglishLegalSystem is true", () => {
+    const ctx = buildLaSchoolContext({
+      ...scotlandIntake,
+      jurisdiction: "England",
+      useEnglishLegalSystem: true,
+      counterpartyType: "AcademyOrFreeSchool",
+      counterparty: { ...baseCounterparty, coveredSchoolsSites: "" },
+    });
+    // Geography stays English; legal system swaps to English law.
+    expect(ctx.isEngland).toBe(true);
+    expect(ctx.isEnglishLaw).toBe(true);
+    expect(ctx.isScotsLaw).toBe(false);
     expect(ctx.governingLawCountry).toBe("England and Wales");
     expect(ctx.governingLawCourts).toBe("Courts of England and Wales");
     expect(ctx.mediatorFallbackLaSchool).toMatch(
       /Centre for Effective Dispute Resolution \(CEDR\)/,
     );
-    // No Scotland-tail bleed-through into the England variant.
     expect(ctx.mediatorFallbackLaSchool).not.toMatch(/office holder/);
   });
 
@@ -246,6 +268,7 @@ describe("formatDate", () => {
 
 const charityIntake: Intake = {
   jurisdiction: "Scotland",
+  useEnglishLegalSystem: false,
   counterpartyType: "CharityPartner",
   counterpartyWillSign: true,
   includeCriminalRecord: true,
@@ -294,10 +317,12 @@ describe("buildCharityContext", () => {
     expect("yearGroupJuniorArticle" in ctx).toBe(false);
   });
 
-  it("derives Scotland charity jurisdiction tokens", () => {
+  it("derives Scotland charity jurisdiction tokens (Scots law)", () => {
     const ctx = buildCharityContext(charityIntake);
     expect(ctx.isScotland).toBe(true);
     expect(ctx.isEngland).toBe(false);
+    expect(ctx.isScotsLaw).toBe(true);
+    expect(ctx.isEnglishLaw).toBe(false);
     expect(ctx.governingLawCountry).toBe("Scotland");
     expect(ctx.governingLawCourts).toBe("Scottish Courts");
     // Charity track Scotland mediator fallback has no office-holder tail.
@@ -306,13 +331,30 @@ describe("buildCharityContext", () => {
     );
   });
 
-  it("derives England charity jurisdiction tokens (Gillick / CEDR / England and Wales)", () => {
+  it("England charity defaults to Scots law (majority case)", () => {
     const ctx = buildCharityContext({
       ...charityIntake,
       jurisdiction: "England",
+      // useEnglishLegalSystem not set — defaults to false.
     });
     expect(ctx.isScotland).toBe(false);
     expect(ctx.isEngland).toBe(true);
+    expect(ctx.isScotsLaw).toBe(true);
+    expect(ctx.isEnglishLaw).toBe(false);
+    expect(ctx.governingLawCountry).toBe("Scotland");
+    expect(ctx.governingLawCourts).toBe("Scottish Courts");
+    expect(ctx.mediatorFallbackCharity).toMatch(/Dean of the Royal Faculty/);
+  });
+
+  it("England charity opts into English law when useEnglishLegalSystem is true", () => {
+    const ctx = buildCharityContext({
+      ...charityIntake,
+      jurisdiction: "England",
+      useEnglishLegalSystem: true,
+    });
+    expect(ctx.isEngland).toBe(true);
+    expect(ctx.isEnglishLaw).toBe(true);
+    expect(ctx.isScotsLaw).toBe(false);
     expect(ctx.governingLawCountry).toBe("England and Wales");
     expect(ctx.governingLawCourts).toBe("Courts of England and Wales");
     expect(ctx.mediatorFallbackCharity).toMatch(

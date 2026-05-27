@@ -64,6 +64,13 @@ export type Mcr = z.infer<typeof McrSchema>;
 export const IntakeSchema = z
   .object({
     jurisdiction: Jurisdiction,
+    // Most English partnerships agree to Scots law on the executed DSA
+    // (matches MCR's home jurisdiction). The minority who want their
+    // agreement governed by English law set this flag, which swaps the
+    // governing-law / courts / mediator / capacity-test clauses. Not
+    // exposed for Scotland intakes — there's no scenario where a Scottish
+    // DSA elects English law.
+    useEnglishLegalSystem: z.boolean().default(false),
     counterpartyType: CounterpartyType,
     counterpartyWillSign: z.boolean().default(true),
     includeCriminalRecord: z.boolean().default(true),
@@ -92,6 +99,14 @@ export const IntakeSchema = z
         "In Scotland the only valid counterparty types are Local Authority " +
         "or Charity Partner. Scottish state schools have no separate legal " +
         "personality and cannot sign their own DSA.",
+    },
+  )
+  .refine(
+    (d) => !(d.jurisdiction === "Scotland" && d.useEnglishLegalSystem),
+    {
+      path: ["useEnglishLegalSystem"],
+      message:
+        "English legal system is not available for Scotland-jurisdiction DSAs.",
     },
   )
   .refine(

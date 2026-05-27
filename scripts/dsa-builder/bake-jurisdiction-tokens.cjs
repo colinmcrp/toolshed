@@ -22,7 +22,7 @@
 // than tokens because the Scotland and England phrasings differ enough
 // (the English variant introduces "{counterparty.shortName}" and "common
 // law test of Gillick competence") that a token-only swap would be uglier
-// than the explicit {#isScotland}…{/isScotland}{#isEngland}…{/isEngland}
+// than the explicit {#isScotsLaw}…{/isScotsLaw}{#isEnglishLaw}…{/isEnglishLaw}
 // branches.
 //
 // Idempotent — re-running is a no-op once the target tokens are present.
@@ -78,8 +78,8 @@ const CHARITY_EDITS = [
     find:
       "not assessed as capable of giving consent on their own behalf under section 2(4) or 2(4A) of the Age of Legal Capacity (Scotland) Act 1991",
     replace:
-      "{#isScotland}not assessed as capable of giving consent on their own behalf under section 2(4) or 2(4A) of the Age of Legal Capacity (Scotland) Act 1991{/isScotland}{#isEngland}not assessed by {counterparty.shortName} as having capacity to consent on their own behalf under the common law test of Gillick competence{/isEngland}",
-    idempotentMarker: "{#isScotland}not assessed as capable",
+      "{#isScotsLaw}not assessed as capable of giving consent on their own behalf under section 2(4) or 2(4A) of the Age of Legal Capacity (Scotland) Act 1991{/isScotsLaw}{#isEnglishLaw}not assessed by {counterparty.shortName} as having capacity to consent on their own behalf under the common law test of Gillick competence{/isEnglishLaw}",
+    idempotentMarker: "{#isScotsLaw}not assessed as capable",
   },
   {
     name: "Charity operative-clause capacity test",
@@ -92,9 +92,9 @@ const CHARITY_EDITS = [
     find:
       "as having capacity to consent on their own behalf under section 2(4) or 2(4A) of the Age of Legal Capacity (Scotland) Act 1991",
     replace:
-      "as having capacity to consent on their own behalf under {#isScotland}section 2(4) or 2(4A) of the Age of Legal Capacity (Scotland) Act 1991{/isScotland}{#isEngland}the common law test of Gillick competence{/isEngland}",
+      "as having capacity to consent on their own behalf under {#isScotsLaw}section 2(4) or 2(4A) of the Age of Legal Capacity (Scotland) Act 1991{/isScotsLaw}{#isEnglishLaw}the common law test of Gillick competence{/isEnglishLaw}",
     idempotentMarker:
-      "as having capacity to consent on their own behalf under {#isScotland}section 2(4)",
+      "as having capacity to consent on their own behalf under {#isScotsLaw}section 2(4)",
   },
   {
     name: "Charity mediator fallback",
@@ -132,7 +132,7 @@ function applyEdits(templatePath, edits) {
 
   for (const edit of edits) {
     // Marker takes precedence: a conditional-section replacement contains
-    // the original Scotland phrasing inside its {#isScotland} branch, so
+    // the original Scotland phrasing inside its {#isScotsLaw} branch, so
     // `find` is still present after a successful bake. Marker presence
     // means "already done — leave alone".
     if (xml.includes(edit.idempotentMarker)) {

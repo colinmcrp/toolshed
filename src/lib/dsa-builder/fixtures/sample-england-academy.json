@@ -2,6 +2,7 @@
   "_comment": "Example intake for an English academy DSA. Demonstrates the school-counterparty path (no Schedule Part 8) and groupwork = false.",
 
   "jurisdiction": "England",
+  "useEnglishLegalSystem": false,
   "counterpartyType": "AcademyOrFreeSchool",
 
   "includeCriminalRecord": true,

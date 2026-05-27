@@ -3,8 +3,10 @@ import {
   COUNTERPARTY_DESCRIPTION_DEFAULTS,
   COUNTERPARTY_INCORPORATING_DEFAULTS,
   ENGLAND_DEFAULTS,
+  ENGLISH_LAW_DEFAULTS,
   MCR_DEFAULTS,
   SCOTLAND_DEFAULTS,
+  SCOTS_LAW_DEFAULTS,
 } from "./defaults";
 
 // Exhaustive switch so a future Jurisdiction enum addition forces an update
@@ -25,14 +27,31 @@ function pickJurisDefaults(
   }
 }
 
+// Legal-system defaults are picked independently of geography: most
+// English partnerships elect Scots law on the executed DSA, with the
+// minority opting into English law via intake.useEnglishLegalSystem.
+// Scotland intakes are pinned to Scots law by the schema refine.
+function pickLegalDefaults(
+  useEnglishLegalSystem: boolean,
+): typeof SCOTS_LAW_DEFAULTS | typeof ENGLISH_LAW_DEFAULTS {
+  return useEnglishLegalSystem ? ENGLISH_LAW_DEFAULTS : SCOTS_LAW_DEFAULTS;
+}
+
 type LaSchoolCounterpartyContext = Counterparty & {
   incorporatingStatute: string;
   incorporatingDescription: string;
 };
 
 export interface LaSchoolRenderContext {
+  // Geographic flags — drive language tied to where the counterparty
+  // operates (FOI act, year groups, education vocab, statutory anchor).
   isScotland: boolean;
   isEngland: boolean;
+  // Legal-system flags — drive the governing-law / mediator / capacity-
+  // test clauses. Independent of geography: an English partner can opt
+  // to stay under Scots law (the majority case).
+  isScotsLaw: boolean;
+  isEnglishLaw: boolean;
   isLA: boolean;
   isSchool: boolean;
   crim: boolean;
@@ -65,6 +84,8 @@ type CharityCounterpartyContext = Counterparty & {
 export interface CharityRenderContext {
   isScotland: boolean;
   isEngland: boolean;
+  isScotsLaw: boolean;
+  isEnglishLaw: boolean;
   crim: boolean;
   governingLawCountry: string;
   governingLawCourts: string;
@@ -176,9 +197,12 @@ function buildCounterpartyBase(intake: Intake): Counterparty {
 export function buildLaSchoolContext(intake: Intake): LaSchoolRenderContext {
   const isScotland = intake.jurisdiction === "Scotland";
   const isEngland = intake.jurisdiction === "England";
+  const isEnglishLaw = intake.useEnglishLegalSystem;
+  const isScotsLaw = !isEnglishLaw;
   const isLA = intake.counterpartyType === "LocalAuthority";
   const isSchool = !isLA;
   const jurisDefaults = pickJurisDefaults(intake.jurisdiction);
+  const legalDefaults = pickLegalDefaults(intake.useEnglishLegalSystem);
 
   const cp = intake.counterparty;
   const incorporatingKey = isLA
@@ -216,12 +240,15 @@ export function buildLaSchoolContext(intake: Intake): LaSchoolRenderContext {
   return {
     isScotland,
     isEngland,
+    isScotsLaw,
+    isEnglishLaw,
     isLA,
     isSchool,
     crim,
     group,
     fund,
     ...jurisDefaults,
+    ...legalDefaults,
     staffDataSubjects,
     schedulePartsCount,
     pageCount: "nine (9)",
@@ -232,22 +259,26 @@ export function buildLaSchoolContext(intake: Intake): LaSchoolRenderContext {
 
 // Charity-to-charity track. Smaller context — the charity template uses
 // {#crim} as a conditional, {#counterparty.hasBackground} for the optional
-// partner-specific Background paragraph, {#isEngland}/{#isScotland} for the
-// Programme Consent capacity test, and {counterparty.*} / {mcr.*}
+// partner-specific Background paragraph, {#isScotsLaw}/{#isEnglishLaw} for
+// the Programme Consent capacity test, and {counterparty.*} / {mcr.*}
 // substitutions for everything else.
 export function buildCharityContext(intake: Intake): CharityRenderContext {
   const isScotland = intake.jurisdiction === "Scotland";
   const isEngland = intake.jurisdiction === "England";
-  const jurisDefaults = pickJurisDefaults(intake.jurisdiction);
+  const isEnglishLaw = intake.useEnglishLegalSystem;
+  const isScotsLaw = !isEnglishLaw;
+  const legalDefaults = pickLegalDefaults(intake.useEnglishLegalSystem);
   const base = buildCounterpartyBase(intake);
   return {
     isScotland,
     isEngland,
+    isScotsLaw,
+    isEnglishLaw,
     crim: intake.includeCriminalRecord,
-    governingLawCountry: jurisDefaults.governingLawCountry,
-    governingLawCourts: jurisDefaults.governingLawCourts,
-    mediatorFallbackLaSchool: jurisDefaults.mediatorFallbackLaSchool,
-    mediatorFallbackCharity: jurisDefaults.mediatorFallbackCharity,
+    governingLawCountry: legalDefaults.governingLawCountry,
+    governingLawCourts: legalDefaults.governingLawCourts,
+    mediatorFallbackLaSchool: legalDefaults.mediatorFallbackLaSchool,
+    mediatorFallbackCharity: legalDefaults.mediatorFallbackCharity,
     counterparty: {
       ...base,
       // Schema refine enforces non-empty for both fields, but withInsertFallback

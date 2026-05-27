@@ -2,6 +2,7 @@
   "_comment": "Example intake for a Scottish local-authority DSA. Mirrors the City of Edinburgh Council agreement signed in September 2025.",
 
   "jurisdiction": "Scotland",
+  "useEnglishLegalSystem": false,
   "counterpartyType": "LocalAuthority",
 
   "includeCriminalRecord": true,

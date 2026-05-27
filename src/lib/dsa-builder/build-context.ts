@@ -1,4 +1,4 @@
-import type { Counterparty, Intake } from "./schema";
+import type { Counterparty, Intake, Jurisdiction } from "./schema";
 import {
   COUNTERPARTY_DESCRIPTION_DEFAULTS,
   COUNTERPARTY_INCORPORATING_DEFAULTS,
@@ -6,6 +6,24 @@ import {
   MCR_DEFAULTS,
   SCOTLAND_DEFAULTS,
 } from "./defaults";
+
+// Exhaustive switch so a future Jurisdiction enum addition forces an update
+// here at compile time. The previous `isScotland ? SCOTLAND : ENGLAND`
+// ternary silently routed unknown values to ENGLAND_DEFAULTS.
+function pickJurisDefaults(
+  jurisdiction: Jurisdiction,
+): typeof SCOTLAND_DEFAULTS | typeof ENGLAND_DEFAULTS {
+  switch (jurisdiction) {
+    case "Scotland":
+      return SCOTLAND_DEFAULTS;
+    case "England":
+      return ENGLAND_DEFAULTS;
+    default: {
+      const _exhaustive: never = jurisdiction;
+      throw new Error(`Unsupported jurisdiction: ${String(_exhaustive)}`);
+    }
+  }
+}
 
 type LaSchoolCounterpartyContext = Counterparty & {
   incorporatingStatute: string;
@@ -29,6 +47,10 @@ export interface LaSchoolRenderContext {
   yearGroupSeniorRange: string;
   yearGroupJuniorRange: string;
   yearGroupJuniorArticle: string;
+  governingLawCountry: string;
+  governingLawCourts: string;
+  mediatorFallbackLaSchool: string;
+  mediatorFallbackCharity: string;
   staffDataSubjects: string;
   schedulePartsCount: string;
   pageCount: string;
@@ -41,7 +63,13 @@ type CharityCounterpartyContext = Counterparty & {
 };
 
 export interface CharityRenderContext {
+  isScotland: boolean;
+  isEngland: boolean;
   crim: boolean;
+  governingLawCountry: string;
+  governingLawCourts: string;
+  mediatorFallbackLaSchool: string;
+  mediatorFallbackCharity: string;
   counterparty: CharityCounterpartyContext;
   mcr: Record<keyof typeof MCR_DEFAULTS, string>;
 }
@@ -50,8 +78,13 @@ export type RenderContext = LaSchoolRenderContext | CharityRenderContext;
 
 const INSERT = "[insert]";
 
+// Trims before the empty check so a whitespace-only value (e.g. an admin
+// endpoint that posted "   ") falls back to [insert] instead of silently
+// rendering as a typographic gap inside prose clauses like the English
+// Programme Consent capacity test.
 function withInsertFallback(value: string | undefined): string {
-  return value && value.length > 0 ? value : INSERT;
+  const trimmed = value?.trim() ?? "";
+  return trimmed.length > 0 ? trimmed : INSERT;
 }
 
 const MONTHS = [
@@ -142,10 +175,10 @@ function buildCounterpartyBase(intake: Intake): Counterparty {
 
 export function buildLaSchoolContext(intake: Intake): LaSchoolRenderContext {
   const isScotland = intake.jurisdiction === "Scotland";
-  const isEngland = !isScotland;
+  const isEngland = intake.jurisdiction === "England";
   const isLA = intake.counterpartyType === "LocalAuthority";
   const isSchool = !isLA;
-  const jurisDefaults = isScotland ? SCOTLAND_DEFAULTS : ENGLAND_DEFAULTS;
+  const jurisDefaults = pickJurisDefaults(intake.jurisdiction);
 
   const cp = intake.counterparty;
   const incorporatingKey = isLA
@@ -199,18 +232,31 @@ export function buildLaSchoolContext(intake: Intake): LaSchoolRenderContext {
 
 // Charity-to-charity track. Smaller context — the charity template uses
 // {#crim} as a conditional, {#counterparty.hasBackground} for the optional
-// partner-specific Background paragraph, and {counterparty.*} / {mcr.*}
+// partner-specific Background paragraph, {#isEngland}/{#isScotland} for the
+// Programme Consent capacity test, and {counterparty.*} / {mcr.*}
 // substitutions for everything else.
 export function buildCharityContext(intake: Intake): CharityRenderContext {
+  const isScotland = intake.jurisdiction === "Scotland";
+  const isEngland = intake.jurisdiction === "England";
+  const jurisDefaults = pickJurisDefaults(intake.jurisdiction);
   const base = buildCounterpartyBase(intake);
   return {
+    isScotland,
+    isEngland,
     crim: intake.includeCriminalRecord,
+    governingLawCountry: jurisDefaults.governingLawCountry,
+    governingLawCourts: jurisDefaults.governingLawCourts,
+    mediatorFallbackLaSchool: jurisDefaults.mediatorFallbackLaSchool,
+    mediatorFallbackCharity: jurisDefaults.mediatorFallbackCharity,
     counterparty: {
       ...base,
-      // Schema refine enforces non-empty, but withInsertFallback is a
-      // belt-and-braces guard against bypass paths (test fixtures that cast
-      // around IntakeSchema.parse, future admin endpoints) — render an
-      // [insert] placeholder rather than a silent empty clause.
+      // Schema refine enforces non-empty for both fields, but withInsertFallback
+      // is a belt-and-braces guard against bypass paths (test fixtures that cast
+      // around IntakeSchema.parse, future admin endpoints). shortName lands
+      // inside the English Programme Consent capacity test as
+      // "not assessed by {counterparty.shortName} as having capacity…", so a
+      // silent empty value would render a double-space typographic glitch.
+      shortName: withInsertFallback(intake.counterparty.shortName),
       legalDescription: withInsertFallback(intake.counterparty.legalDescription),
       hasBackground: (intake.counterparty.background ?? "").trim().length > 0,
     },

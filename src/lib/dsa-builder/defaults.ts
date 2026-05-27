@@ -12,6 +12,15 @@ export const SCOTLAND_DEFAULTS = {
   yearGroupSeniorRange: "S3 and upwards",
   yearGroupJuniorRange: "S1 and S2",
   yearGroupJuniorArticle: "an",
+  governingLawCountry: "Scotland",
+  governingLawCourts: "Scottish Courts",
+  // LA/school keeps the "or the equivalent office holder in the local
+  // authority area" tail; charity track does not (per the executed Sept-2025
+  // National DSA). Two tokens so the templates can drop in the right one.
+  mediatorFallbackLaSchool:
+    "chosen by the Dean of the Royal Faculty of Procurators in Glasgow or the equivalent office holder in the local authority area",
+  mediatorFallbackCharity:
+    "chosen by the Dean of the Royal Faculty of Procurators in Glasgow",
 } as const;
 
 export const ENGLAND_DEFAULTS = {
@@ -26,6 +35,12 @@ export const ENGLAND_DEFAULTS = {
   yearGroupSeniorRange: "Year 9 and upwards",
   yearGroupJuniorRange: "Year 7 and Year 8",
   yearGroupJuniorArticle: "a",
+  governingLawCountry: "England and Wales",
+  governingLawCourts: "Courts of England and Wales",
+  mediatorFallbackLaSchool:
+    "appointed by the Centre for Effective Dispute Resolution (CEDR) on the application of either Party",
+  mediatorFallbackCharity:
+    "appointed by the Centre for Effective Dispute Resolution (CEDR) on the application of either Party",
 } as const;
 
 // Keyed by `${counterpartyType}_${jurisdiction}` for LA, by counterpartyType otherwise.

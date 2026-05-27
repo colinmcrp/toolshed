@@ -310,6 +310,121 @@ describe("MCR Pathways logo is baked into the template", () => {
   });
 });
 
+describe("template token boundaries", () => {
+  // Mirrors render.ts:SCANNED_PART_RE so a stray mediator-token typo in a
+  // header/footer/footnote — not just document.xml — is caught here too.
+  const SCANNED_PART_RE =
+    /^word\/(document|header\d*|footer\d*|footnotes|endnotes|comments)\.xml$/;
+
+  function templateXml(template: Buffer): string {
+    const zip = new PizZip(template);
+    return Object.keys(zip.files)
+      .filter((name) => SCANNED_PART_RE.test(name))
+      .map((name) => zip.file(name)?.asText() ?? "")
+      .join("\n");
+  }
+
+  // Both context shapes carry both mediator-fallback tokens for symmetry,
+  // but each template should reference only its own variant. A copy-paste
+  // typo that drops {mediatorFallbackLaSchool} into the charity template
+  // would resolve cleanly (no stray-token error) and silently render the
+  // Scotland LA "or the equivalent office holder in the local authority
+  // area" tail in a charity DSA. Pin each template's allowed token here.
+  it("LA template references {mediatorFallbackLaSchool} and not the charity variant", () => {
+    const xml = templateXml(TEMPLATE);
+    expect(xml).toContain("{mediatorFallbackLaSchool}");
+    expect(xml).not.toContain("{mediatorFallbackCharity}");
+  });
+
+  it("Charity template references {mediatorFallbackCharity} and not the LA/school variant", () => {
+    const xml = templateXml(CHARITY_TEMPLATE);
+    expect(xml).toContain("{mediatorFallbackCharity}");
+    expect(xml).not.toContain("{mediatorFallbackLaSchool}");
+  });
+});
+
+describe("English legal system swap", () => {
+  it("Scotland LA: keeps law of Scotland + Scottish Courts + Royal Faculty fallback", () => {
+    const text = renderText(loadIntake("sample-scotland.json"));
+    expect(text).toMatch(/governed by and construed in accordance with the law of Scotland/);
+    expect(text).toMatch(/Scottish Courts shall have exclusive jurisdiction/);
+    expect(text).toMatch(/Dean of the Royal Faculty of Procurators in Glasgow/);
+    expect(text).toMatch(/equivalent office holder in the local authority area/);
+    // English-jurisdiction phrasings absent. (Note: "law of England and Wales"
+    // appears once in the Data Protection Law definition's UK GDPR boilerplate,
+    // so we assert on uniquely-English governing-law phrasings instead.)
+    expect(text).not.toMatch(/Courts of England and Wales/);
+    expect(text).not.toMatch(/Centre for Effective Dispute Resolution/);
+  });
+
+  it("England academy: swaps to law of England and Wales + CEDR appointment", () => {
+    const text = renderText(englandSchoolIntake);
+    expect(text).toMatch(
+      /governed by and construed in accordance with the law of England and Wales/,
+    );
+    expect(text).toMatch(/Courts of England and Wales shall have exclusive jurisdiction/);
+    expect(text).toMatch(/Centre for Effective Dispute Resolution \(CEDR\)/);
+    expect(text).toMatch(/on the application of either Party/);
+    // No bleed-through of Scotland-only phrasing.
+    expect(text).not.toMatch(/law of Scotland\b/);
+    expect(text).not.toMatch(/Scottish Courts/);
+    expect(text).not.toMatch(/Dean of the Royal Faculty/);
+    expect(text).not.toMatch(/office holder in the local authority area/);
+  });
+
+  it("Scotland charity: keeps Age of Legal Capacity test + Royal Faculty fallback", () => {
+    const intake = loadIntake("sample-charity-centrestage.json");
+    const charityText = extractDocxText(
+      renderToBuffer(CHARITY_TEMPLATE, buildContext(intake)),
+    );
+    expect(charityText).toMatch(/section 2\(4\) or 2\(4A\) of the Age of Legal Capacity \(Scotland\) Act 1991/);
+    expect(charityText).toMatch(/governed by and construed in accordance with the law of Scotland/);
+    expect(charityText).toMatch(/Dean of the Royal Faculty of Procurators in Glasgow/);
+    // Charity-track Scotland mediator has no LA-area tail (per Sept-2025
+    // executed National DSA).
+    expect(charityText).not.toMatch(/office holder in the local authority area/);
+    expect(charityText).not.toMatch(/Gillick competence/);
+    expect(charityText).not.toMatch(/Centre for Effective Dispute Resolution/);
+  });
+
+  it("England charity: swaps to Gillick competence + CEDR + Courts of England and Wales", () => {
+    const intake = {
+      ...loadIntake("sample-charity-centrestage.json"),
+      jurisdiction: "England" as const,
+    };
+    const charityText = extractDocxText(
+      renderToBuffer(CHARITY_TEMPLATE, buildContext(intake)),
+    );
+    // Programme Consent definition: Gillick competence assessed by the
+    // counterparty (not the section 2(4) statute). The [^\s,]\S* prefix
+    // requires shortName to start with a non-space, non-comma character —
+    // catches an empty/whitespace shortName (which would render as a
+    // double-space typographic glitch) that a greedy [^,]+ would silently
+    // pass.
+    expect(charityText).toMatch(
+      /not assessed by [^\s,]\S*( \S+)* as having capacity to consent on their own behalf under the common law test of Gillick competence/,
+    );
+    // Operative clause picks up Gillick too.
+    expect(charityText).toMatch(
+      /as having capacity to consent on their own behalf under the common law test of Gillick competence/,
+    );
+    // Governing law swapped.
+    expect(charityText).toMatch(
+      /governed by and construed in accordance with the law of England and Wales/,
+    );
+    expect(charityText).toMatch(
+      /Courts of England and Wales shall have exclusive jurisdiction/,
+    );
+    // Mediator fallback uses CEDR.
+    expect(charityText).toMatch(/Centre for Effective Dispute Resolution \(CEDR\)/);
+    // No Scotland-only phrasings leak through.
+    expect(charityText).not.toMatch(/Age of Legal Capacity \(Scotland\) Act 1991/);
+    expect(charityText).not.toMatch(/law of Scotland\b/);
+    expect(charityText).not.toMatch(/Scottish Courts/);
+    expect(charityText).not.toMatch(/Dean of the Royal Faculty/);
+  });
+});
+
 describe("schedule structure differs by counterparty", () => {
   it("LA counterparty: 'Schedule Part 8' present and 'eight (8)' wording", () => {
     const text = renderText(loadIntake("sample-scotland.json"));

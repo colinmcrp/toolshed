@@ -54,6 +54,11 @@ describe("buildContext", () => {
     expect(ctx.foi.short).toBe("FOISA");
     expect(ctx.childrenAct).toBe("Children (Scotland) Act 1995");
     expect(ctx.schedulePartsCount).toBe("eight (8)");
+    expect(ctx.governingLawCountry).toBe("Scotland");
+    expect(ctx.governingLawCourts).toBe("Scottish Courts");
+    expect(ctx.mediatorFallbackLaSchool).toMatch(
+      /Dean of the Royal Faculty of Procurators in Glasgow or the equivalent office holder/,
+    );
   });
 
   it("derives England + school flags", () => {
@@ -68,6 +73,13 @@ describe("buildContext", () => {
     expect(ctx.isSchool).toBe(true);
     expect(ctx.foi.short).toBe("FOIA");
     expect(ctx.schedulePartsCount).toBe("seven (7)");
+    expect(ctx.governingLawCountry).toBe("England and Wales");
+    expect(ctx.governingLawCourts).toBe("Courts of England and Wales");
+    expect(ctx.mediatorFallbackLaSchool).toMatch(
+      /Centre for Effective Dispute Resolution \(CEDR\)/,
+    );
+    // No Scotland-tail bleed-through into the England variant.
+    expect(ctx.mediatorFallbackLaSchool).not.toMatch(/office holder/);
   });
 
   it("defaults groupwork true in both jurisdictions when unset", () => {
@@ -265,11 +277,47 @@ describe("buildCharityContext", () => {
     expect(ctx.counterparty.legalDescription).toContain("OSCR");
     expect(ctx.mcr.signatoryPosition).toBe("Head of Schools");
     // LA/school-only fields must be absent — they would silently leak
-    // jurisdiction text into a charity render otherwise.
-    expect("isScotland" in ctx).toBe(false);
+    // jurisdiction text into a charity render otherwise. Cover every
+    // SCOTLAND_DEFAULTS/ENGLAND_DEFAULTS key that the LA/school context
+    // picks up via its ...jurisDefaults spread but the charity context
+    // intentionally omits.
     expect("foi" in ctx).toBe(false);
     expect("statutoryAnchor" in ctx).toBe(false);
     expect("schedulePartsCount" in ctx).toBe(false);
+    expect("childrenAct" in ctx).toBe(false);
+    expect("eduVocab" in ctx).toBe(false);
+    expect("businessDayGeographies" in ctx).toBe(false);
+    expect("targetedGroup" in ctx).toBe(false);
+    expect("staffDataSubjects" in ctx).toBe(false);
+    expect("yearGroupSeniorRange" in ctx).toBe(false);
+    expect("yearGroupJuniorRange" in ctx).toBe(false);
+    expect("yearGroupJuniorArticle" in ctx).toBe(false);
+  });
+
+  it("derives Scotland charity jurisdiction tokens", () => {
+    const ctx = buildCharityContext(charityIntake);
+    expect(ctx.isScotland).toBe(true);
+    expect(ctx.isEngland).toBe(false);
+    expect(ctx.governingLawCountry).toBe("Scotland");
+    expect(ctx.governingLawCourts).toBe("Scottish Courts");
+    // Charity track Scotland mediator fallback has no office-holder tail.
+    expect(ctx.mediatorFallbackCharity).toBe(
+      "chosen by the Dean of the Royal Faculty of Procurators in Glasgow",
+    );
+  });
+
+  it("derives England charity jurisdiction tokens (Gillick / CEDR / England and Wales)", () => {
+    const ctx = buildCharityContext({
+      ...charityIntake,
+      jurisdiction: "England",
+    });
+    expect(ctx.isScotland).toBe(false);
+    expect(ctx.isEngland).toBe(true);
+    expect(ctx.governingLawCountry).toBe("England and Wales");
+    expect(ctx.governingLawCourts).toBe("Courts of England and Wales");
+    expect(ctx.mediatorFallbackCharity).toMatch(
+      /Centre for Effective Dispute Resolution \(CEDR\)/,
+    );
   });
 
   it("applies counterpartyWillSign=false [insert] fallbacks", () => {
@@ -321,13 +369,14 @@ describe("buildCharityContext", () => {
 describe("buildContext dispatcher", () => {
   it("routes CharityPartner to buildCharityContext", () => {
     const ctx = buildContext(charityIntake);
-    expect("isScotland" in ctx).toBe(false);
+    // foi is LA/school-track only and disambiguates the two context shapes.
+    expect("foi" in ctx).toBe(false);
     expect(ctx.crim).toBe(true);
   });
 
   it("routes LocalAuthority to buildLaSchoolContext", () => {
     const ctx = buildContext(scotlandIntake);
-    expect("isScotland" in ctx).toBe(true);
+    expect("foi" in ctx).toBe(true);
   });
 });
 

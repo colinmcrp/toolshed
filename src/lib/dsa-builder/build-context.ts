@@ -29,6 +29,10 @@ export interface LaSchoolRenderContext {
   yearGroupSeniorRange: string;
   yearGroupJuniorRange: string;
   yearGroupJuniorArticle: string;
+  governingLawCountry: string;
+  governingLawCourts: string;
+  mediatorFallbackLaSchool: string;
+  mediatorFallbackCharity: string;
   staffDataSubjects: string;
   schedulePartsCount: string;
   pageCount: string;
@@ -41,7 +45,13 @@ type CharityCounterpartyContext = Counterparty & {
 };
 
 export interface CharityRenderContext {
+  isScotland: boolean;
+  isEngland: boolean;
   crim: boolean;
+  governingLawCountry: string;
+  governingLawCourts: string;
+  mediatorFallbackLaSchool: string;
+  mediatorFallbackCharity: string;
   counterparty: CharityCounterpartyContext;
   mcr: Record<keyof typeof MCR_DEFAULTS, string>;
 }
@@ -142,7 +152,7 @@ function buildCounterpartyBase(intake: Intake): Counterparty {
 
 export function buildLaSchoolContext(intake: Intake): LaSchoolRenderContext {
   const isScotland = intake.jurisdiction === "Scotland";
-  const isEngland = !isScotland;
+  const isEngland = intake.jurisdiction === "England";
   const isLA = intake.counterpartyType === "LocalAuthority";
   const isSchool = !isLA;
   const jurisDefaults = isScotland ? SCOTLAND_DEFAULTS : ENGLAND_DEFAULTS;
@@ -199,18 +209,31 @@ export function buildLaSchoolContext(intake: Intake): LaSchoolRenderContext {
 
 // Charity-to-charity track. Smaller context — the charity template uses
 // {#crim} as a conditional, {#counterparty.hasBackground} for the optional
-// partner-specific Background paragraph, and {counterparty.*} / {mcr.*}
+// partner-specific Background paragraph, {#isEngland}/{#isScotland} for the
+// Programme Consent capacity test, and {counterparty.*} / {mcr.*}
 // substitutions for everything else.
 export function buildCharityContext(intake: Intake): CharityRenderContext {
+  const isScotland = intake.jurisdiction === "Scotland";
+  const isEngland = intake.jurisdiction === "England";
+  const jurisDefaults = isScotland ? SCOTLAND_DEFAULTS : ENGLAND_DEFAULTS;
   const base = buildCounterpartyBase(intake);
   return {
+    isScotland,
+    isEngland,
     crim: intake.includeCriminalRecord,
+    governingLawCountry: jurisDefaults.governingLawCountry,
+    governingLawCourts: jurisDefaults.governingLawCourts,
+    mediatorFallbackLaSchool: jurisDefaults.mediatorFallbackLaSchool,
+    mediatorFallbackCharity: jurisDefaults.mediatorFallbackCharity,
     counterparty: {
       ...base,
-      // Schema refine enforces non-empty, but withInsertFallback is a
-      // belt-and-braces guard against bypass paths (test fixtures that cast
-      // around IntakeSchema.parse, future admin endpoints) — render an
-      // [insert] placeholder rather than a silent empty clause.
+      // Schema refine enforces non-empty for both fields, but withInsertFallback
+      // is a belt-and-braces guard against bypass paths (test fixtures that cast
+      // around IntakeSchema.parse, future admin endpoints). shortName lands
+      // inside the English Programme Consent capacity test as
+      // "not assessed by {counterparty.shortName} as having capacity…", so a
+      // silent empty value would render a double-space typographic glitch.
+      shortName: withInsertFallback(intake.counterparty.shortName),
       legalDescription: withInsertFallback(intake.counterparty.legalDescription),
       hasBackground: (intake.counterparty.background ?? "").trim().length > 0,
     },

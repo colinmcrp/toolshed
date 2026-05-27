@@ -1,0 +1,48 @@
+{
+  "_comment": "Example intake for a charity-to-charity DSA. Mirrors the Centrestage Communities Ltd partnership (Kilmarnock-based Scottish charity hosting the MCR Mentoring Programme).",
+
+  "jurisdiction": "Scotland",
+  "counterpartyType": "CharityPartner",
+
+  "includeCriminalRecord": true,
+
+  "counterparty": {
+    "legalName": "Centrestage Communities Ltd",
+    "shortName": "Centrestage",
+    "address": "50 Sturrock Street, Kilmarnock KA1 2DZ",
+
+    "legalDescription": "a company limited by guarantee registered in Scotland (company number SC295238) and a Scottish charity regulated by the Office of the Scottish Charity Regulator (OSCR), charity number SC039611",
+
+    "background": "Centrestage works with children, young people and families across East Ayrshire through music, theatre and community-based programmes, supporting confidence, attainment and wellbeing. The Parties have identified an opportunity to extend MCR's 1:1 mentoring to participants in those programmes who would benefit from a carefully matched volunteer mentor.",
+
+
+    "signatoryName": "[insert]",
+    "signatoryPosition": "Chief Executive",
+    "signatoryDate": "[insert]",
+    "signatoryPlace": "50 Sturrock Street, Kilmarnock KA1 2DZ",
+
+    "witnessName": "[insert]",
+    "witnessPosition": "Operations Manager",
+    "witnessDate": "[insert]",
+    "witnessAddress": "50 Sturrock Street, Kilmarnock KA1 2DZ",
+
+    "repJobTitle": "Programme Lead",
+    "repAddress": "50 Sturrock Street, Kilmarnock KA1 2DZ",
+    "repEmail": "",
+    "repPhone": "[insert]",
+
+    "escalationJobTitle": "Chief Executive",
+    "escalationAddress": "50 Sturrock Street, Kilmarnock KA1 2DZ",
+    "escalationEmail": "",
+    "escalationPhone": "[insert]"
+  },
+
+  "mcr": {
+    "signatoryName": "[insert MCR signatory]",
+    "signatoryPosition": "Head of Schools",
+    "signatoryDate": "[insert]",
+    "witnessName": "[insert MCR witness]",
+    "witnessPosition": "Programme Manager",
+    "witnessDate": "[insert]"
+  }
+}

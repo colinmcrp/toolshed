@@ -19,7 +19,10 @@ const { readFileSync, writeFileSync } = require("node:fs");
 const { resolve } = require("node:path");
 
 const REPO_ROOT = resolve(__dirname, "..", "..");
-const TEMPLATE_PATH = resolve(REPO_ROOT, "public", "MCR_DSA_Master_Template.docx");
+const TEMPLATE_PATHS = [
+  resolve(REPO_ROOT, "public", "MCR_DSA_Master_Template.docx"),
+  resolve(REPO_ROOT, "public", "MCR_DSA_Charity_Master_Template.docx"),
+];
 const LOGO_PATH = resolve(REPO_ROOT, "public", "dsa-builder", "images", "mcr-logo.png");
 
 // rId100 sits well clear of the template's existing rId1..rId9 sequence,
@@ -75,39 +78,46 @@ const RELS_ADDITION =
   ' Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"' +
   ` Target="media/${LOGO_MEDIA_NAME}"/>`;
 
-const templateBuf = readFileSync(TEMPLATE_PATH);
 const logoBuf = readFileSync(LOGO_PATH);
-const zip = new PizZip(templateBuf);
 
-const documentXml = zip.file("word/document.xml").asText();
-if (documentXml.includes(LOGO_RID)) {
-  console.log("logo already baked into template — nothing to do");
-  process.exit(0);
+function bakeLogoInto(templatePath) {
+  const templateBuf = readFileSync(templatePath);
+  const zip = new PizZip(templateBuf);
+
+  const documentXml = zip.file("word/document.xml").asText();
+  if (documentXml.includes(LOGO_RID)) {
+    console.log(`${templatePath}: logo already baked — nothing to do`);
+    return;
+  }
+
+  const BODY_OPEN = "<w:body>";
+  const bodyIdx = documentXml.indexOf(BODY_OPEN);
+  if (bodyIdx === -1) {
+    throw new Error(`${templatePath}: could not locate <w:body> in document.xml`);
+  }
+
+  const newDocumentXml =
+    documentXml.slice(0, bodyIdx + BODY_OPEN.length) +
+    LOGO_DRAWING_PARA +
+    documentXml.slice(bodyIdx + BODY_OPEN.length);
+  zip.file("word/document.xml", newDocumentXml);
+
+  const relsXml = zip.file("word/_rels/document.xml.rels").asText();
+  const RELS_CLOSE = "</Relationships>";
+  const newRelsXml =
+    relsXml.slice(0, relsXml.lastIndexOf(RELS_CLOSE)) +
+    RELS_ADDITION +
+    RELS_CLOSE;
+  zip.file("word/_rels/document.xml.rels", newRelsXml);
+
+  zip.file(`word/media/${LOGO_MEDIA_NAME}`, logoBuf);
+
+  const out = zip.generate({ type: "nodebuffer", compression: "DEFLATE" });
+  writeFileSync(templatePath, out);
+  console.log(
+    `${templatePath}: baked logo (${logoBuf.length} bytes); ` +
+      `was ${templateBuf.length} bytes, now ${out.length} bytes`,
+  );
 }
 
-const BODY_OPEN = "<w:body>";
-const bodyIdx = documentXml.indexOf(BODY_OPEN);
-if (bodyIdx === -1) throw new Error("could not locate <w:body> in document.xml");
-
-const newDocumentXml =
-  documentXml.slice(0, bodyIdx + BODY_OPEN.length) +
-  LOGO_DRAWING_PARA +
-  documentXml.slice(bodyIdx + BODY_OPEN.length);
-zip.file("word/document.xml", newDocumentXml);
-
-const relsXml = zip.file("word/_rels/document.xml.rels").asText();
-const RELS_CLOSE = "</Relationships>";
-const newRelsXml =
-  relsXml.slice(0, relsXml.lastIndexOf(RELS_CLOSE)) +
-  RELS_ADDITION +
-  RELS_CLOSE;
-zip.file("word/_rels/document.xml.rels", newRelsXml);
-
-zip.file(`word/media/${LOGO_MEDIA_NAME}`, logoBuf);
-
-const out = zip.generate({ type: "nodebuffer", compression: "DEFLATE" });
-writeFileSync(TEMPLATE_PATH, out);
-console.log(
-  `baked logo (${logoBuf.length} bytes) into template; ` +
-    `was ${templateBuf.length} bytes, now ${out.length} bytes`,
-);
+for (const p of TEMPLATE_PATHS) bakeLogoInto(p);

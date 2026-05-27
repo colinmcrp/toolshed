@@ -18,7 +18,13 @@ const COUNTERPARTY_OPTIONS = [
   { value: "MaintainedSchool", label: "Maintained school" },
   { value: "AcademyOrFreeSchool", label: "Academy / free school" },
   { value: "IndependentSchool", label: "Independent school" },
+  { value: "CharityPartner", label: "Charity partner" },
 ] as const;
+
+const SCOTLAND_ALLOWED_TYPES = new Set([
+  "LocalAuthority",
+  "CharityPartner",
+]);
 
 export function Step1Jurisdiction() {
   const form = useFormContext<Intake>();
@@ -38,14 +44,18 @@ export function Step1Jurisdiction() {
                 value={field.value}
                 onValueChange={(value) => {
                   field.onChange(value);
-                  // Scotland: state schools can't sign their own DSA, so force
-                  // counterparty to LA. Groupwork applies in both jurisdictions
-                  // (the clause is rewritten S1/S2 ↔ Y7/Y8 at render time), so
-                  // we don't reset the user's groupwork choice on switch.
+                  // Scotland: state schools can't sign their own DSA. If the
+                  // current selection isn't one of the Scotland-valid types
+                  // (LA, CharityPartner), reset to LA. Groupwork applies in
+                  // both jurisdictions (clause rewritten S1/S2 ↔ Y7/Y8 at
+                  // render time), so we don't reset the groupwork choice.
                   if (value === "Scotland") {
-                    form.setValue("counterpartyType", "LocalAuthority", {
-                      shouldValidate: true,
-                    });
+                    const current = form.getValues("counterpartyType");
+                    if (!SCOTLAND_ALLOWED_TYPES.has(current)) {
+                      form.setValue("counterpartyType", "LocalAuthority", {
+                        shouldValidate: true,
+                      });
+                    }
                   }
                 }}
                 className="flex flex-col gap-2"
@@ -81,7 +91,8 @@ export function Step1Jurisdiction() {
                 className="flex flex-col gap-2"
               >
                 {COUNTERPARTY_OPTIONS.map((opt) => {
-                  const disabled = isScotland && opt.value !== "LocalAuthority";
+                  const disabled =
+                    isScotland && !SCOTLAND_ALLOWED_TYPES.has(opt.value);
                   return (
                     <div
                       key={opt.value}
@@ -106,8 +117,10 @@ export function Step1Jurisdiction() {
             {isScotland && (
               <p className="rounded-md border border-accent/40 bg-accent/10 px-3 py-2 text-xs text-muted-foreground">
                 Scottish state schools have no separate legal personality from
-                their local authority — the LA is the only legal person that
-                can sign. Open the help icon above for the full pathway.
+                their local authority — the LA route is for state-school
+                partnerships, and the charity-partner route is for charity-
+                to-charity arrangements. Open the help icon above for the full
+                state-school pathway.
               </p>
             )}
             <FormMessage />

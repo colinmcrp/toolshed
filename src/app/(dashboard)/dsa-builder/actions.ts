@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { after } from "next/server";
 import { getUser } from "@/lib/supabase/server";
-import { buildContext } from "@/lib/dsa-builder/build-context";
+import { buildContext, pickTemplate } from "@/lib/dsa-builder/build-context";
 import { buildFilename } from "@/lib/dsa-builder/filename";
 import { renderToBuffer } from "@/lib/dsa-builder/render";
 import { IntakeSchema, type Intake } from "@/lib/dsa-builder/schema";
@@ -27,7 +27,7 @@ export async function generateDsa(rawIntake: unknown): Promise<GeneratedDsa> {
   const templatePath = resolve(
     process.cwd(),
     "public",
-    "MCR_DSA_Master_Template.docx",
+    pickTemplate(intake.counterpartyType),
   );
   const template = await readFile(templatePath);
 

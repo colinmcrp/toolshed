@@ -17,7 +17,7 @@ describe("IntakeSchema", () => {
     expect(result.success).toBe(true);
   });
 
-  it("rejects Scotland + non-LA with the legally-anchored message", () => {
+  it("rejects Scotland + MaintainedSchool with the legally-anchored message", () => {
     const result = IntakeSchema.safeParse({
       jurisdiction: "Scotland",
       counterpartyType: "MaintainedSchool",
@@ -31,6 +31,65 @@ describe("IntakeSchema", () => {
       expect(issue?.message).toMatch(/Scotland the only valid counterparty/);
       expect(issue?.message).toMatch(/no separate legal personality/);
     }
+  });
+
+  it("accepts Scotland + CharityPartner (no coveredSchoolsSites required)", () => {
+    const result = IntakeSchema.safeParse({
+      jurisdiction: "Scotland",
+      counterpartyType: "CharityPartner",
+      counterparty: {
+        ...baseCounterparty,
+        legalName: "Centrestage Communities Ltd",
+        shortName: "Centrestage",
+        legalDescription:
+          "a company limited by guarantee registered in Scotland and a Scottish charity",
+      },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("requires legalDescription when counterparty is CharityPartner", () => {
+    const result = IntakeSchema.safeParse({
+      jurisdiction: "Scotland",
+      counterpartyType: "CharityPartner",
+      counterparty: {
+        ...baseCounterparty,
+        legalName: "Centrestage Communities Ltd",
+        shortName: "Centrestage",
+        // legalDescription omitted — defaults to "" and must be rejected.
+      },
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      const issue = result.error.issues.find((i) =>
+        i.path.join(".") === "counterparty.legalDescription",
+      );
+      expect(issue?.message).toMatch(/charity's legal status/);
+    }
+  });
+
+  it("rejects whitespace-only legalDescription for CharityPartner", () => {
+    const result = IntakeSchema.safeParse({
+      jurisdiction: "Scotland",
+      counterpartyType: "CharityPartner",
+      counterparty: {
+        ...baseCounterparty,
+        legalDescription: "   \n  ",
+      },
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts England + CharityPartner", () => {
+    const result = IntakeSchema.safeParse({
+      jurisdiction: "England",
+      counterpartyType: "CharityPartner",
+      counterparty: {
+        ...baseCounterparty,
+        legalDescription: "a charitable company limited by guarantee",
+      },
+    });
+    expect(result.success).toBe(true);
   });
 
   it("requires coveredSchoolsSites when counterparty is LocalAuthority", () => {

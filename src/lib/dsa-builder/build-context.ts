@@ -7,12 +7,12 @@ import {
   SCOTLAND_DEFAULTS,
 } from "./defaults";
 
-type CounterpartyContext = Counterparty & {
+type LaSchoolCounterpartyContext = Counterparty & {
   incorporatingStatute: string;
   incorporatingDescription: string;
 };
 
-export interface RenderContext {
+export interface LaSchoolRenderContext {
   isScotland: boolean;
   isEngland: boolean;
   isLA: boolean;
@@ -32,9 +32,21 @@ export interface RenderContext {
   staffDataSubjects: string;
   schedulePartsCount: string;
   pageCount: string;
-  counterparty: CounterpartyContext;
+  counterparty: LaSchoolCounterpartyContext;
   mcr: Record<keyof typeof MCR_DEFAULTS, string>;
 }
+
+type CharityCounterpartyContext = Counterparty & {
+  hasBackground: boolean;
+};
+
+export interface CharityRenderContext {
+  crim: boolean;
+  counterparty: CharityCounterpartyContext;
+  mcr: Record<keyof typeof MCR_DEFAULTS, string>;
+}
+
+export type RenderContext = LaSchoolRenderContext | CharityRenderContext;
 
 const INSERT = "[insert]";
 
@@ -70,20 +82,25 @@ export function todayIso(): string {
   return `${y}-${m}-${d}`;
 }
 
-export function buildContext(intake: Intake): RenderContext {
-  const isScotland = intake.jurisdiction === "Scotland";
-  const isEngland = !isScotland;
-  const isLA = intake.counterpartyType === "LocalAuthority";
-  const isSchool = !isLA;
-  const jurisDefaults = isScotland ? SCOTLAND_DEFAULTS : ENGLAND_DEFAULTS;
+// Merges intake.mcr with MCR_DEFAULTS, skipping empty intake values so the
+// [insert] placeholders survive into the rendered document.
+function buildMcr(intake: Intake): Record<keyof typeof MCR_DEFAULTS, string> {
+  const intakeMcrNonEmpty = Object.fromEntries(
+    Object.entries(intake.mcr).filter(([, v]) => v !== ""),
+  );
+  const mcr: Record<keyof typeof MCR_DEFAULTS, string> = {
+    ...MCR_DEFAULTS,
+    ...intakeMcrNonEmpty,
+  };
+  mcr.signatoryDate = formatDate(mcr.signatoryDate);
+  mcr.witnessDate = formatDate(mcr.witnessDate);
+  return mcr;
+}
 
+// Applies the counterpartyWillSign toggle and [insert] fallbacks. Shared
+// between the LA/school and charity tracks.
+function buildCounterpartyBase(intake: Intake): Counterparty {
   const cp = intake.counterparty;
-  const incorporatingKey = isLA
-    ? isScotland
-      ? "LocalAuthority_Scotland"
-      : "LocalAuthority_England"
-    : intake.counterpartyType;
-
   // Position values are kept regardless — they come from the counterparty
   // type (Headteacher, Service Director), not the individual.
   const willSign = intake.counterpartyWillSign !== false;
@@ -102,12 +119,8 @@ export function buildContext(intake: Intake): RenderContext {
   const escalationEmail = willSign ? cp.escalationEmail : "";
   const escalationPhone = willSign ? cp.escalationPhone : "";
 
-  const counterparty: CounterpartyContext = {
+  return {
     ...cp,
-    shortName: cp.shortName || (isLA ? "the Council" : "the School"),
-    incorporatingStatute: COUNTERPARTY_INCORPORATING_DEFAULTS[incorporatingKey] ?? "",
-    incorporatingDescription:
-      COUNTERPARTY_DESCRIPTION_DEFAULTS[intake.counterpartyType] ?? "",
     signatoryName: withInsertFallback(sigName),
     signatoryPosition: withInsertFallback(cp.signatoryPosition),
     signatoryDate: withInsertFallback(formatDate(sigDate)),
@@ -124,6 +137,31 @@ export function buildContext(intake: Intake): RenderContext {
     escalationAddress: withInsertFallback(escalationAddress),
     escalationEmail: withInsertFallback(escalationEmail),
     escalationPhone: withInsertFallback(escalationPhone),
+  };
+}
+
+export function buildLaSchoolContext(intake: Intake): LaSchoolRenderContext {
+  const isScotland = intake.jurisdiction === "Scotland";
+  const isEngland = !isScotland;
+  const isLA = intake.counterpartyType === "LocalAuthority";
+  const isSchool = !isLA;
+  const jurisDefaults = isScotland ? SCOTLAND_DEFAULTS : ENGLAND_DEFAULTS;
+
+  const cp = intake.counterparty;
+  const incorporatingKey = isLA
+    ? isScotland
+      ? "LocalAuthority_Scotland"
+      : "LocalAuthority_England"
+    : intake.counterpartyType;
+
+  const base = buildCounterpartyBase(intake);
+
+  const counterparty: LaSchoolCounterpartyContext = {
+    ...base,
+    shortName: cp.shortName || (isLA ? "the Council" : "the School"),
+    incorporatingStatute: COUNTERPARTY_INCORPORATING_DEFAULTS[incorporatingKey] ?? "",
+    incorporatingDescription:
+      COUNTERPARTY_DESCRIPTION_DEFAULTS[intake.counterpartyType] ?? "",
     coveredSchoolsSites:
       cp.coveredSchoolsSites ||
       "[list the schools and alternative provision sites covered by this Agreement]",
@@ -142,21 +180,6 @@ export function buildContext(intake: Intake): RenderContext {
 
   const schedulePartsCount = isLA ? "eight (8)" : "seven (7)";
 
-  // Empty intake fields fall back to MCR_DEFAULTS (which contain "[insert]"
-  // placeholders for the signing block), matching how withInsertFallback
-  // handles the counterparty side. Without this filter, an unfilled MCR
-  // step 4 would produce a doc with blank signature lines instead of visible
-  // [insert] placeholders.
-  const intakeMcrNonEmpty = Object.fromEntries(
-    Object.entries(intake.mcr).filter(([, v]) => v !== ""),
-  );
-  const mcr: Record<keyof typeof MCR_DEFAULTS, string> = {
-    ...MCR_DEFAULTS,
-    ...intakeMcrNonEmpty,
-  };
-  mcr.signatoryDate = formatDate(mcr.signatoryDate);
-  mcr.witnessDate = formatDate(mcr.witnessDate);
-
   return {
     isScotland,
     isEngland,
@@ -170,6 +193,41 @@ export function buildContext(intake: Intake): RenderContext {
     schedulePartsCount,
     pageCount: "nine (9)",
     counterparty,
-    mcr,
+    mcr: buildMcr(intake),
   };
+}
+
+// Charity-to-charity track. Smaller context — the charity template uses
+// {#crim} as a conditional, {#counterparty.hasBackground} for the optional
+// partner-specific Background paragraph, and {counterparty.*} / {mcr.*}
+// substitutions for everything else.
+export function buildCharityContext(intake: Intake): CharityRenderContext {
+  const base = buildCounterpartyBase(intake);
+  return {
+    crim: intake.includeCriminalRecord,
+    counterparty: {
+      ...base,
+      // Schema refine enforces non-empty, but withInsertFallback is a
+      // belt-and-braces guard against bypass paths (test fixtures that cast
+      // around IntakeSchema.parse, future admin endpoints) — render an
+      // [insert] placeholder rather than a silent empty clause.
+      legalDescription: withInsertFallback(intake.counterparty.legalDescription),
+      hasBackground: (intake.counterparty.background ?? "").trim().length > 0,
+    },
+    mcr: buildMcr(intake),
+  };
+}
+
+export function buildContext(intake: Intake): RenderContext {
+  return intake.counterpartyType === "CharityPartner"
+    ? buildCharityContext(intake)
+    : buildLaSchoolContext(intake);
+}
+
+// Selects the master template path matching the chosen counterparty track.
+// Paths are relative to the repo's public/ directory.
+export function pickTemplate(counterpartyType: Intake["counterpartyType"]): string {
+  return counterpartyType === "CharityPartner"
+    ? "MCR_DSA_Charity_Master_Template.docx"
+    : "MCR_DSA_Master_Template.docx";
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildContext, formatDate } from "./build-context";
+import { buildCharityContext, buildContext, buildLaSchoolContext, formatDate, pickTemplate } from "./build-context";
 import type { Intake } from "./schema";
 
 const baseCounterparty = {
@@ -23,6 +23,8 @@ const baseCounterparty = {
   escalationEmail: "",
   escalationPhone: "",
   coveredSchoolsSites: "All schools",
+  legalDescription: "",
+  background: "",
 };
 
 const scotlandIntake: Intake = {
@@ -44,7 +46,7 @@ const scotlandIntake: Intake = {
 
 describe("buildContext", () => {
   it("derives Scotland flags and defaults", () => {
-    const ctx = buildContext(scotlandIntake);
+    const ctx = buildLaSchoolContext(scotlandIntake);
     expect(ctx.isScotland).toBe(true);
     expect(ctx.isEngland).toBe(false);
     expect(ctx.isLA).toBe(true);
@@ -55,7 +57,7 @@ describe("buildContext", () => {
   });
 
   it("derives England + school flags", () => {
-    const ctx = buildContext({
+    const ctx = buildLaSchoolContext({
       ...scotlandIntake,
       jurisdiction: "England",
       counterpartyType: "AcademyOrFreeSchool",
@@ -69,9 +71,9 @@ describe("buildContext", () => {
   });
 
   it("defaults groupwork true in both jurisdictions when unset", () => {
-    const sc = buildContext({ ...scotlandIntake, includeGroupwork: undefined });
+    const sc = buildLaSchoolContext({ ...scotlandIntake, includeGroupwork: undefined });
     expect(sc.group).toBe(true);
-    const en = buildContext({
+    const en = buildLaSchoolContext({
       ...scotlandIntake,
       jurisdiction: "England",
       counterpartyType: "AcademyOrFreeSchool",
@@ -82,10 +84,10 @@ describe("buildContext", () => {
   });
 
   it("uses jurisdiction-appropriate junior-range article (an S1 / a Year 7)", () => {
-    const sc = buildContext(scotlandIntake);
+    const sc = buildLaSchoolContext(scotlandIntake);
     expect(sc.yearGroupJuniorArticle).toBe("an");
     expect(sc.yearGroupJuniorRange).toBe("S1 and S2");
-    const en = buildContext({
+    const en = buildLaSchoolContext({
       ...scotlandIntake,
       jurisdiction: "England",
       counterpartyType: "AcademyOrFreeSchool",
@@ -96,24 +98,24 @@ describe("buildContext", () => {
   });
 
   it("respects an explicit groupwork override", () => {
-    const ctx = buildContext({ ...scotlandIntake, includeGroupwork: false });
+    const ctx = buildLaSchoolContext({ ...scotlandIntake, includeGroupwork: false });
     expect(ctx.group).toBe(false);
   });
 
   it("fills the counterparty incorporating statute for LA Scotland", () => {
-    const ctx = buildContext(scotlandIntake);
+    const ctx = buildLaSchoolContext(scotlandIntake);
     expect(ctx.counterparty.incorporatingStatute).toBe(
       "the Local Government etc. (Scotland) Act 1994",
     );
   });
 
   it("uses 'School/Local Authority Staff' wording when LA", () => {
-    const ctx = buildContext(scotlandIntake);
+    const ctx = buildLaSchoolContext(scotlandIntake);
     expect(ctx.staffDataSubjects).toMatch(/School\/Local Authority Staff/);
   });
 
   it("uses 'School Staff' wording when not LA", () => {
-    const ctx = buildContext({
+    const ctx = buildLaSchoolContext({
       ...scotlandIntake,
       jurisdiction: "England",
       counterpartyType: "AcademyOrFreeSchool",
@@ -123,7 +125,7 @@ describe("buildContext", () => {
   });
 
   it("merges MCR_DEFAULTS with the intake's mcr block", () => {
-    const ctx = buildContext({
+    const ctx = buildLaSchoolContext({
       ...scotlandIntake,
       mcr: { ...scotlandIntake.mcr, signatoryName: "Natalie Smith" },
     });
@@ -132,7 +134,7 @@ describe("buildContext", () => {
   });
 
   it("counterpartyWillSign=false forces signatory, witness, and contact blocks to [insert]", () => {
-    const ctx = buildContext({
+    const ctx = buildLaSchoolContext({
       ...scotlandIntake,
       counterpartyWillSign: false,
       counterparty: {
@@ -173,7 +175,7 @@ describe("buildContext", () => {
   });
 
   it("counterpartyWillSign=true (default) keeps the entered signatory values", () => {
-    const ctx = buildContext({
+    const ctx = buildLaSchoolContext({
       ...scotlandIntake,
       counterparty: {
         ...baseCounterparty,
@@ -186,7 +188,7 @@ describe("buildContext", () => {
   });
 
   it("keeps [insert] placeholders when intake MCR fields are empty strings", () => {
-    const ctx = buildContext({
+    const ctx = buildLaSchoolContext({
       ...scotlandIntake,
       mcr: {
         signatoryName: "",
@@ -227,5 +229,123 @@ describe("formatDate", () => {
 
   it("passes invalid ISO dates through (out-of-range month)", () => {
     expect(formatDate("2026-13-01")).toBe("2026-13-01");
+  });
+});
+
+const charityIntake: Intake = {
+  jurisdiction: "Scotland",
+  counterpartyType: "CharityPartner",
+  counterpartyWillSign: true,
+  includeCriminalRecord: true,
+  includeFundraising: true,
+  counterparty: {
+    ...baseCounterparty,
+    legalName: "Centrestage Communities Ltd",
+    shortName: "Centrestage",
+    address: "50 Sturrock Street, Kilmarnock KA1 2DZ",
+    legalDescription:
+      "a company limited by guarantee registered in Scotland (company number SC123456) and a Scottish charity regulated by OSCR, charity number SC039611",
+    coveredSchoolsSites: "",
+  },
+  mcr: {
+    signatoryName: "",
+    signatoryPosition: "Head of Schools",
+    signatoryDate: "",
+    witnessName: "",
+    witnessPosition: "Programme Manager",
+    witnessDate: "",
+  },
+};
+
+describe("buildCharityContext", () => {
+  it("returns the smaller charity-track context shape", () => {
+    const ctx = buildCharityContext(charityIntake);
+    expect(ctx.crim).toBe(true);
+    expect(ctx.counterparty.legalName).toBe("Centrestage Communities Ltd");
+    expect(ctx.counterparty.legalDescription).toContain("OSCR");
+    expect(ctx.mcr.signatoryPosition).toBe("Head of Schools");
+    // LA/school-only fields must be absent — they would silently leak
+    // jurisdiction text into a charity render otherwise.
+    expect("isScotland" in ctx).toBe(false);
+    expect("foi" in ctx).toBe(false);
+    expect("statutoryAnchor" in ctx).toBe(false);
+    expect("schedulePartsCount" in ctx).toBe(false);
+  });
+
+  it("applies counterpartyWillSign=false [insert] fallbacks", () => {
+    const ctx = buildCharityContext({
+      ...charityIntake,
+      counterpartyWillSign: false,
+      counterparty: {
+        ...charityIntake.counterparty,
+        signatoryName: "Should be hidden",
+        repEmail: "rep@example.org",
+      },
+    });
+    expect(ctx.counterparty.signatoryName).toBe("[insert]");
+    expect(ctx.counterparty.repEmail).toBe("[insert]");
+  });
+
+  it("respects includeCriminalRecord=false", () => {
+    const ctx = buildCharityContext({
+      ...charityIntake,
+      includeCriminalRecord: false,
+    });
+    expect(ctx.crim).toBe(false);
+  });
+
+  it("hasBackground is false when background is empty / whitespace", () => {
+    const empty = buildCharityContext(charityIntake);
+    expect(empty.counterparty.hasBackground).toBe(false);
+    const blank = buildCharityContext({
+      ...charityIntake,
+      counterparty: { ...charityIntake.counterparty, background: "   \n  " },
+    });
+    expect(blank.counterparty.hasBackground).toBe(false);
+  });
+
+  it("hasBackground is true when background has content; text passes through", () => {
+    const ctx = buildCharityContext({
+      ...charityIntake,
+      counterparty: {
+        ...charityIntake.counterparty,
+        background:
+          "Centrestage works with young people through music and theatre.",
+      },
+    });
+    expect(ctx.counterparty.hasBackground).toBe(true);
+    expect(ctx.counterparty.background).toMatch(/music and theatre/);
+  });
+});
+
+describe("buildContext dispatcher", () => {
+  it("routes CharityPartner to buildCharityContext", () => {
+    const ctx = buildContext(charityIntake);
+    expect("isScotland" in ctx).toBe(false);
+    expect(ctx.crim).toBe(true);
+  });
+
+  it("routes LocalAuthority to buildLaSchoolContext", () => {
+    const ctx = buildContext(scotlandIntake);
+    expect("isScotland" in ctx).toBe(true);
+  });
+});
+
+describe("pickTemplate", () => {
+  it("returns the charity master template for CharityPartner", () => {
+    expect(pickTemplate("CharityPartner")).toBe(
+      "MCR_DSA_Charity_Master_Template.docx",
+    );
+  });
+
+  it("returns the LA/school master template for every other type", () => {
+    expect(pickTemplate("LocalAuthority")).toBe("MCR_DSA_Master_Template.docx");
+    expect(pickTemplate("MaintainedSchool")).toBe("MCR_DSA_Master_Template.docx");
+    expect(pickTemplate("AcademyOrFreeSchool")).toBe(
+      "MCR_DSA_Master_Template.docx",
+    );
+    expect(pickTemplate("IndependentSchool")).toBe(
+      "MCR_DSA_Master_Template.docx",
+    );
   });
 });

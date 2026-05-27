@@ -8,6 +8,7 @@ export const CounterpartyType = z.enum([
   "MaintainedSchool",
   "AcademyOrFreeSchool",
   "IndependentSchool",
+  "CharityPartner",
 ]);
 export type CounterpartyType = z.infer<typeof CounterpartyType>;
 
@@ -38,6 +39,15 @@ export const CounterpartySchema = z.object({
   escalationEmail: optionalString,
   escalationPhone: optionalString,
   coveredSchoolsSites: optionalString,
+  // Charity-track only — free-text legal status (e.g. "a company limited by
+  // guarantee registered in Scotland, company number SCxxxxxx, and a Scottish
+  // charity regulated by OSCR, charity number SCxxxxxx"). Equivalent to the
+  // LA/school track's COUNTERPARTY_INCORPORATING_DEFAULTS lookup.
+  legalDescription: optionalString,
+  // Charity-track only — optional partner-specific Background paragraph
+  // dropped into the recitals between the "runs its own programmes" anchor
+  // and the "MCR delivers" paragraph. Blank → paragraph omitted.
+  background: optionalString,
 });
 export type Counterparty = z.infer<typeof CounterpartySchema>;
 
@@ -70,13 +80,18 @@ export const IntakeSchema = z
     }),
   })
   .refine(
-    (d) => !(d.jurisdiction === "Scotland" && d.counterpartyType !== "LocalAuthority"),
+    (d) =>
+      !(
+        d.jurisdiction === "Scotland" &&
+        d.counterpartyType !== "LocalAuthority" &&
+        d.counterpartyType !== "CharityPartner"
+      ),
     {
       path: ["counterpartyType"],
       message:
-        "In Scotland the only valid counterparty type is Local Authority. " +
-        "Scottish state schools have no separate legal personality and " +
-        "cannot sign their own DSA.",
+        "In Scotland the only valid counterparty types are Local Authority " +
+        "or Charity Partner. Scottish state schools have no separate legal " +
+        "personality and cannot sign their own DSA.",
     },
   )
   .refine(
@@ -87,6 +102,16 @@ export const IntakeSchema = z
       path: ["counterparty", "coveredSchoolsSites"],
       message:
         "List the schools / sites covered when the counterparty is a Local Authority.",
+    },
+  )
+  .refine(
+    (d) =>
+      d.counterpartyType !== "CharityPartner" ||
+      (d.counterparty.legalDescription ?? "").trim().length > 0,
+    {
+      path: ["counterparty", "legalDescription"],
+      message:
+        "Describe the charity's legal status (company / OSCR registration) when the counterparty is a Charity Partner.",
     },
   )
   .superRefine((d, ctx) => {

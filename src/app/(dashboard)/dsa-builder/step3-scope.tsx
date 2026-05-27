@@ -17,16 +17,22 @@ type ScopeField = {
   description: string;
 };
 
-function buildFields(isScotland: boolean): ScopeField[] {
+function buildFields(isScotland: boolean, isCharity: boolean): ScopeField[] {
+  const criminalRecord: ScopeField = {
+    name: "includeCriminalRecord",
+    label: "Include criminal record data",
+    description:
+      "Includes the criminal record bullet in Schedule Part 1 and the Article 10 row in the legal-basis table. Turn off only if MCR has been told not to receive criminal record data for this partnership.",
+  };
+  // Charity-to-charity track has neither the S1/S2 (Y7/Y8) groupwork
+  // programme nor the marketing/fundraising legal-basis variation — the
+  // charity template doesn't reference {#group} or {#fund} at all.
+  if (isCharity) return [criminalRecord];
+
   const groupYears = isScotland ? "S1/S2" : "Y7/Y8";
   const groupYearsLong = isScotland ? "S1 and S2" : "Year 7 and Year 8";
   return [
-    {
-      name: "includeCriminalRecord",
-      label: "Include criminal record data",
-      description:
-        "Includes the criminal record bullet in Schedule Part 1 and the Article 10 row in the legal-basis table. Turn off only if MCR has been told not to receive criminal record data for this partnership.",
-    },
+    criminalRecord,
     {
       name: "includeGroupwork",
       label: `Include ${groupYears} groupwork programme`,
@@ -44,7 +50,8 @@ function buildFields(isScotland: boolean): ScopeField[] {
 export function Step3Scope() {
   const form = useFormContext<Intake>();
   const isScotland = form.watch("jurisdiction") === "Scotland";
-  const fields = buildFields(isScotland);
+  const isCharity = form.watch("counterpartyType") === "CharityPartner";
+  const fields = buildFields(isScotland, isCharity);
 
   return (
     <div className="space-y-4">

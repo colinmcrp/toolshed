@@ -93,6 +93,7 @@ const LAST_STEP = STEP_META.length - 1;
 
 export function Wizard() {
   const [step, setStep] = useState(0);
+  const [canGenerate, setCanGenerate] = useState(false);
   const form = useForm<IntakeInput, unknown, Intake>({
     resolver: zodResolver(IntakeSchema),
     defaultValues: buildDefaultValues(),
@@ -113,6 +114,7 @@ export function Wizard() {
           label: "Generate another",
           onClick: () => {
             form.reset(buildDefaultValues());
+            setCanGenerate(false);
             setStep(0);
           },
         },
@@ -153,7 +155,10 @@ export function Wizard() {
           <Button
             type="button"
             variant="ghost"
-            onClick={() => setStep((s) => Math.max(0, s - 1))}
+            onClick={() => {
+              setCanGenerate(false);
+              setStep((s) => Math.max(0, s - 1));
+            }}
             disabled={step === 0}
           >
             Back
@@ -162,9 +167,14 @@ export function Wizard() {
             <Button
               type="button"
               onClick={async () => {
-                const fields = STEP_FIELDS[step];
-                const valid = await form.trigger(fields);
-                if (valid) setStep((s) => Math.min(LAST_STEP, s + 1));
+                const valid =
+                  step === LAST_STEP - 1
+                    ? await form.trigger()
+                    : await form.trigger(STEP_FIELDS[step]);
+                if (valid) {
+                  setCanGenerate(step === LAST_STEP - 1);
+                  setStep((s) => Math.min(LAST_STEP, s + 1));
+                }
               }}
             >
               Next
@@ -173,7 +183,7 @@ export function Wizard() {
             <Button
               type="button"
               onClick={onSubmit}
-              disabled={!form.formState.isValid || form.formState.isSubmitting}
+              disabled={!canGenerate || form.formState.isSubmitting}
             >
               {form.formState.isSubmitting ? "Generating…" : "Generate DSA"}
             </Button>

@@ -41,6 +41,23 @@ const MCR_DEFAULTS = {
 const INSERT = "[insert]";
 const fallback = (v) => (v && v.length > 0 ? v : INSERT);
 
+// Mirror src/lib/dsa-builder/build-context.ts:formatDate so ISO-date fixtures
+// render the same in the bootstrapped reference as in production.
+const MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+const ISO_DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
+function formatDate(value) {
+  if (!value) return "";
+  const m = value.match(ISO_DATE_RE);
+  if (!m) return value;
+  const [, y, mo, d] = m;
+  const monthIdx = Number(mo) - 1;
+  if (monthIdx < 0 || monthIdx > 11) return value;
+  return `${Number(d)} ${MONTHS[monthIdx]} ${y}`;
+}
+
 function buildCharityContext(intake) {
   const cp = intake.counterparty;
   const willSign = intake.counterpartyWillSign !== false;
@@ -49,11 +66,11 @@ function buildCharityContext(intake) {
     ...cp,
     signatoryName: fallback(pick(cp.signatoryName)),
     signatoryPosition: fallback(cp.signatoryPosition),
-    signatoryDate: fallback(pick(cp.signatoryDate)),
+    signatoryDate: fallback(formatDate(pick(cp.signatoryDate))),
     signatoryPlace: fallback(pick(cp.signatoryPlace) || cp.address),
     witnessName: fallback(pick(cp.witnessName)),
     witnessPosition: fallback(cp.witnessPosition),
-    witnessDate: fallback(pick(cp.witnessDate)),
+    witnessDate: fallback(formatDate(pick(cp.witnessDate))),
     witnessAddress: fallback(pick(cp.witnessAddress) || cp.address),
     repJobTitle: fallback(pick(cp.repJobTitle)),
     repAddress: fallback(pick(cp.repAddress)),
@@ -68,6 +85,8 @@ function buildCharityContext(intake) {
     Object.entries(intake.mcr || {}).filter(([, v]) => v !== ""),
   );
   const mcr = { ...MCR_DEFAULTS, ...intakeMcrNonEmpty };
+  mcr.signatoryDate = formatDate(mcr.signatoryDate);
+  mcr.witnessDate = formatDate(mcr.witnessDate);
   return {
     crim: intake.includeCriminalRecord !== false,
     counterparty: {

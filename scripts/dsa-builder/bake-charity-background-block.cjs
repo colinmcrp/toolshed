@@ -67,6 +67,22 @@ if (documentXml.includes(correctBlock)) {
   process.exit(0);
 }
 
+// Detect partial / malformed prior bakes: any individual tag present without
+// the full three-paragraph correctBlock means someone hand-edited the
+// template (or a prior bake was interrupted). Re-splicing would insert a
+// second copy, so refuse and let the operator clean it up.
+if (
+  documentXml.includes(OPEN_TAG) ||
+  documentXml.includes(BODY_TAG) ||
+  documentXml.includes(CLOSE_TAG)
+) {
+  throw new Error(
+    "Template contains partial or malformed background tags. " +
+      "Revert public/MCR_DSA_Charity_Master_Template.docx and re-run, or " +
+      "manually clean up the existing tags before re-baking.",
+  );
+}
+
 const idx = findParagraphStart(documentXml, ANCHOR);
 if (idx === -1) {
   throw new Error(

@@ -27,7 +27,10 @@ const { readFileSync, writeFileSync } = require("node:fs");
 const { resolve } = require("node:path");
 
 const REPO_ROOT = resolve(__dirname, "..", "..");
-const TEMPLATE_PATH = resolve(REPO_ROOT, "public", "MCR_DSA_Master_Template.docx");
+const TEMPLATE_PATHS = [
+  resolve(REPO_ROOT, "public", "MCR_DSA_Master_Template.docx"),
+  resolve(REPO_ROOT, "public", "MCR_DSA_Charity_Master_Template.docx"),
+];
 
 const PLACEHOLDERS = [
   {
@@ -88,44 +91,48 @@ function findBadSinglePara(xml, openTag, imageTag, closeTag) {
   return null;
 }
 
-const buf = readFileSync(TEMPLATE_PATH);
-const zip = new PizZip(buf);
-let documentXml = zip.file("word/document.xml").asText();
+function bakePlaceholdersInto(templatePath) {
+  const buf = readFileSync(templatePath);
+  const zip = new PizZip(buf);
+  let documentXml = zip.file("word/document.xml").asText();
 
-const actions = [];
-for (const p of PLACEHOLDERS) {
-  // Remove any prior all-in-one paragraph first.
-  const bad = findBadSinglePara(documentXml, p.openTag, p.imageTag, p.closeTag);
-  if (bad) {
-    documentXml = documentXml.slice(0, bad.start) + documentXml.slice(bad.end);
-    actions.push(`removed legacy single-paragraph ${p.name}`);
+  const actions = [];
+  for (const p of PLACEHOLDERS) {
+    // Remove any prior all-in-one paragraph first.
+    const bad = findBadSinglePara(documentXml, p.openTag, p.imageTag, p.closeTag);
+    if (bad) {
+      documentXml = documentXml.slice(0, bad.start) + documentXml.slice(bad.end);
+      actions.push(`removed legacy single-paragraph ${p.name}`);
+    }
+
+    // If the correct three-paragraph form is already present, skip.
+    const correctBlock =
+      paragraphXml(p.openTag) + paragraphXml(p.imageTag) + paragraphXml(p.closeTag);
+    if (documentXml.includes(correctBlock)) {
+      continue;
+    }
+
+    const idx = findParagraphStart(documentXml, p.anchor);
+    if (idx === -1) {
+      throw new Error(
+        `${templatePath}: could not locate <w:p> containing anchor ${p.anchor} for ${p.name}`,
+      );
+    }
+    documentXml =
+      documentXml.slice(0, idx) + correctBlock + documentXml.slice(idx);
+    actions.push(`inserted ${p.name}`);
   }
 
-  // If the correct three-paragraph form is already present, skip.
-  const correctBlock =
-    paragraphXml(p.openTag) + paragraphXml(p.imageTag) + paragraphXml(p.closeTag);
-  if (documentXml.includes(correctBlock)) {
-    continue;
+  if (actions.length === 0) {
+    console.log(`${templatePath}: nothing to do`);
+    return;
   }
 
-  const idx = findParagraphStart(documentXml, p.anchor);
-  if (idx === -1) {
-    throw new Error(
-      `Could not locate <w:p> containing anchor ${p.anchor} for ${p.name}`,
-    );
-  }
-  documentXml =
-    documentXml.slice(0, idx) + correctBlock + documentXml.slice(idx);
-  actions.push(`inserted ${p.name}`);
+  zip.file("word/document.xml", documentXml);
+  const out = zip.generate({ type: "nodebuffer", compression: "DEFLATE" });
+  writeFileSync(templatePath, out);
+  console.log(`${templatePath}: ${actions.join("; ")}`);
+  console.log(`${templatePath}: was ${buf.length} bytes, now ${out.length} bytes`);
 }
 
-if (actions.length === 0) {
-  console.log("nothing to do");
-  process.exit(0);
-}
-
-zip.file("word/document.xml", documentXml);
-const out = zip.generate({ type: "nodebuffer", compression: "DEFLATE" });
-writeFileSync(TEMPLATE_PATH, out);
-console.log(actions.join("; "));
-console.log(`was ${buf.length} bytes, now ${out.length} bytes`);
+for (const p of TEMPLATE_PATHS) bakePlaceholdersInto(p);

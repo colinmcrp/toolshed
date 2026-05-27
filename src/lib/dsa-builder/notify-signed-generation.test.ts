@@ -29,6 +29,8 @@ const BASE_INTAKE: Intake = {
     escalationEmail: "",
     escalationPhone: "",
     coveredSchoolsSites: "All Edinburgh secondary schools",
+    legalDescription: "",
+    background: "",
   },
   mcr: {
     signatoryName: "Sharon McIntyre",

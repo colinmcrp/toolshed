@@ -11,6 +11,9 @@ const repoRoot = resolve(__dirname, "..", "..", "..");
 const TEMPLATE = readFileSync(
   resolve(repoRoot, "public", "MCR_DSA_Master_Template.docx"),
 );
+const CHARITY_TEMPLATE = readFileSync(
+  resolve(repoRoot, "public", "MCR_DSA_Charity_Master_Template.docx"),
+);
 const FIXTURE_DIR = resolve(__dirname, "fixtures");
 
 function loadIntake(file: string): Intake {
@@ -58,6 +61,149 @@ describe("renderToBuffer — parity with reference fixtures", () => {
     const got = renderToBuffer(TEMPLATE, buildContext(intake));
     expect(extractDocxText(got)).not.toContain("undefined");
   });
+
+  it("Centrestage charity fixture matches reference output text", () => {
+    const intake = loadIntake("sample-charity-centrestage.json");
+    const got = renderToBuffer(CHARITY_TEMPLATE, buildContext(intake));
+    const expected = loadFixture("sample-charity-centrestage.generated.docx");
+    expect(normaliseWhitespace(extractDocxText(got))).toBe(
+      normaliseWhitespace(extractDocxText(expected)),
+    );
+  });
+});
+
+describe("charity-to-charity track", () => {
+  function renderCharity(): string {
+    const intake = loadIntake("sample-charity-centrestage.json");
+    return extractDocxText(
+      renderToBuffer(CHARITY_TEMPLATE, buildContext(intake)),
+    );
+  }
+
+  // §7.3 — no LA/school template content leaks into the charity output.
+  // The LA-only education vocab (KS2, pupil premium, free school meals) is
+  // permitted exactly once each, inside the explicit "Not within scope"
+  // carve-out in Schedule Part 1.
+  describe("no LA-template bleed-through", () => {
+    it("contains no FOISA / FOIA references", () => {
+      const text = renderCharity();
+      expect(text).not.toMatch(/FOISA/);
+      expect(text).not.toMatch(/FOIA/);
+    });
+
+    it("contains no Schedule Part 8 or 'eight (8)' schedule count", () => {
+      const text = renderCharity();
+      expect(text).not.toMatch(/Schedule Part 8/);
+      expect(text).not.toMatch(/eight \(8\)/);
+    });
+
+    it("does not use 'the Council' as the counterparty short-name", () => {
+      const text = renderCharity();
+      expect(text).not.toMatch(/the Council/);
+    });
+
+    it("contains no 'Standards in Scotland' statutory anchor", () => {
+      const text = renderCharity();
+      expect(text).not.toMatch(/Standards in Scotland/);
+    });
+
+    it("limits LA education vocab to the single 'Not within scope' carve-out", () => {
+      const text = renderCharity();
+      // Each phrase may appear at most once, inside the Schedule Part 1
+      // "Not within scope" paragraph that deliberately enumerates what the
+      // charity DSA does not cover.
+      expect(text.match(/KS2/g)?.length ?? 0).toBeLessThanOrEqual(1);
+      expect(text.match(/pupil premium/g)?.length ?? 0).toBeLessThanOrEqual(1);
+      expect(text.match(/free school meals/g)?.length ?? 0).toBeLessThanOrEqual(1);
+    });
+  });
+
+  // §7.4 — charity-track substantive content must be present.
+  describe("charity-track content present", () => {
+    it("uses the counterparty short-name in body references", () => {
+      expect(renderCharity()).toMatch(/Centrestage/);
+    });
+
+    it("anchors processing on Article 6(1)(a) and Article 9(2)(a)", () => {
+      const text = renderCharity();
+      expect(text).toMatch(/Article 6\(1\)\(a\)/);
+      expect(text).toMatch(/Article 9\(2\)\(a\)/);
+    });
+
+    it("references Programme Consent and the Combined Privacy Notice", () => {
+      const text = renderCharity();
+      expect(text).toMatch(/Programme Consent/);
+      expect(text).toMatch(/Combined Privacy Notice/);
+    });
+
+    it("includes the PVG Scheme safeguarding clause", () => {
+      expect(renderCharity()).toMatch(/PVG Scheme/);
+    });
+
+    it("cites the Age of Legal Capacity (Scotland) Act 1991", () => {
+      expect(renderCharity()).toMatch(/Age of Legal Capacity \(Scotland\) Act 1991/);
+    });
+
+    it("includes the forward-looking Article 26 clause", () => {
+      expect(renderCharity()).toMatch(/Article 26/);
+    });
+  });
+
+  it("renders the charity template with no stray {tokens}", () => {
+    const intake = loadIntake("sample-charity-centrestage.json");
+    const got = renderToBuffer(CHARITY_TEMPLATE, buildContext(intake));
+    expect(extractDocxText(got)).not.toMatch(/\{[A-Za-z]/);
+  });
+
+  describe("conditional Background paragraph", () => {
+    it("inserts the user-supplied paragraph between Background ¶1 and 'MCR delivers'", () => {
+      const intake = loadIntake("sample-charity-centrestage.json");
+      const text = extractDocxText(
+        renderToBuffer(CHARITY_TEMPLATE, buildContext(intake)),
+      );
+      const flat = normaliseWhitespace(text);
+      const anchor1 = "holds the consents to engage with them in its own programmes.";
+      const customMatch = "music, theatre and community-based programmes";
+      const anchor2 = "MCR delivers the MCR Pathways Mentoring Programme";
+      const idx1 = flat.indexOf(anchor1);
+      const idxC = flat.indexOf(customMatch);
+      const idx2 = flat.indexOf(anchor2);
+      expect(idx1).toBeGreaterThan(-1);
+      expect(idxC).toBeGreaterThan(idx1);
+      expect(idx2).toBeGreaterThan(idxC);
+    });
+
+    it("omits the paragraph entirely when background is blank", () => {
+      const intake = loadIntake("sample-charity-centrestage.json");
+      intake.counterparty.background = "";
+      const text = extractDocxText(
+        renderToBuffer(CHARITY_TEMPLATE, buildContext(intake)),
+      );
+      expect(text).not.toMatch(/music, theatre and community-based programmes/);
+      // The two surrounding paragraphs must still be present and adjacent.
+      const flat = normaliseWhitespace(text);
+      const anchor1Idx = flat.indexOf("holds the consents to engage with them");
+      const anchor2Idx = flat.indexOf("MCR delivers the MCR Pathways");
+      expect(anchor1Idx).toBeGreaterThan(-1);
+      expect(anchor2Idx).toBeGreaterThan(anchor1Idx);
+      // Nothing between them but the paragraph break itself — no leftover
+      // {#counterparty.hasBackground} or empty Background paragraph.
+      const between = flat.slice(
+        anchor1Idx + "holds the consents to engage with them in its own programmes.".length,
+        anchor2Idx,
+      );
+      expect(between.trim()).toBe("");
+    });
+
+    it("trims-whitespace-only backgrounds out (no empty paragraph)", () => {
+      const intake = loadIntake("sample-charity-centrestage.json");
+      intake.counterparty.background = "   \n  ";
+      const text = extractDocxText(
+        renderToBuffer(CHARITY_TEMPLATE, buildContext(intake)),
+      );
+      expect(text).not.toMatch(/music, theatre and community-based/);
+    });
+  });
 });
 
 const englandSchoolCounterparty: Counterparty = {
@@ -81,6 +227,8 @@ const englandSchoolCounterparty: Counterparty = {
   escalationEmail: "",
   escalationPhone: "",
   coveredSchoolsSites: "",
+  legalDescription: "",
+  background: "",
 };
 
 const englandSchoolIntake: Intake = {
@@ -212,5 +360,45 @@ describe("renderToBuffer — signatures", () => {
     expect(text).not.toMatch(/\{%mcr/);
     expect(text).not.toMatch(/\{#mcrHas/);
     expect(text).not.toMatch(/\{\/mcrHas/);
+  });
+
+  it("inserts both signature images into the charity template's word/media", () => {
+    const intake = loadIntake("sample-charity-centrestage.json");
+    const baseline = renderToBuffer(CHARITY_TEMPLATE, buildContext(intake));
+    const signed = renderToBuffer(CHARITY_TEMPLATE, buildContext(intake), {
+      signatoryImage: FIXTURE_PNG,
+      witnessImage: FIXTURE_PNG,
+    });
+    expect(countMediaImages(signed)).toBe(countMediaImages(baseline) + 2);
+  });
+
+  it("charity template: rejects stray image tokens after rendering unsigned", () => {
+    const intake = loadIntake("sample-charity-centrestage.json");
+    const bytes = renderToBuffer(CHARITY_TEMPLATE, buildContext(intake), {});
+    const text = extractDocxText(bytes);
+    expect(text).not.toMatch(/\{%mcr/);
+    expect(text).not.toMatch(/\{#mcrHas/);
+    expect(text).not.toMatch(/\{\/mcrHas/);
+  });
+});
+
+describe("MCR Pathways logo is baked into the charity template", () => {
+  it("preserves the logo PNG in word/media after rendering", () => {
+    const intake = loadIntake("sample-charity-centrestage.json");
+    const got = renderToBuffer(CHARITY_TEMPLATE, buildContext(intake));
+    const zip = new PizZip(got);
+    const mediaFiles = Object.keys(zip.files).filter((f) =>
+      f.startsWith("word/media/"),
+    );
+    expect(mediaFiles).toContain("word/media/mcr-logo.png");
+  });
+
+  it("preserves the logo <w:drawing> element in document.xml", () => {
+    const intake = loadIntake("sample-charity-centrestage.json");
+    const got = renderToBuffer(CHARITY_TEMPLATE, buildContext(intake));
+    const zip = new PizZip(got);
+    const xml = zip.file("word/document.xml")?.asText() ?? "";
+    expect(xml).toContain("<w:drawing>");
+    expect(xml).toContain("rIdMCRLogo");
   });
 });

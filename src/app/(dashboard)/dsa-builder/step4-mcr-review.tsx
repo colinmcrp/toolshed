@@ -65,6 +65,7 @@ export function Step4McrReview() {
     name: "counterpartyWillSign",
   }) !== false;
   const isLA = snapshot.counterpartyType === "LocalAuthority";
+  const isCharity = snapshot.counterpartyType === "CharityPartner";
 
   const resetMcrDefaults = () => {
     const today = todayIso();
@@ -146,6 +147,22 @@ export function Step4McrReview() {
               value={snapshot.counterparty.coveredSchoolsSites}
             />
           )}
+          {isCharity && (
+            <ReviewRow
+              label="Legal status"
+              value={snapshot.counterparty.legalDescription}
+            />
+          )}
+          {isCharity && (
+            <ReviewRow
+              label="Background paragraph"
+              value={
+                snapshot.counterparty.background?.trim()
+                  ? snapshot.counterparty.background
+                  : "Omitted from recitals"
+              }
+            />
+          )}
           {willSign ? (
             <>
               <ReviewRow label="Signatory name" value={snapshot.counterparty.signatoryName} />
@@ -169,14 +186,18 @@ export function Step4McrReview() {
             label="Criminal record"
             value={snapshot.includeCriminalRecord ? "Included" : "Excluded"}
           />
-          <ReviewRow
-            label="S1/S2 (Y7/Y8) groupwork"
-            value={snapshot.includeGroupwork ? "Included" : "Excluded"}
-          />
-          <ReviewRow
-            label="Fundraising"
-            value={snapshot.includeFundraising ? "Included" : "Excluded"}
-          />
+          {!isCharity && (
+            <>
+              <ReviewRow
+                label="S1/S2 (Y7/Y8) groupwork"
+                value={snapshot.includeGroupwork ? "Included" : "Excluded"}
+              />
+              <ReviewRow
+                label="Fundraising"
+                value={snapshot.includeFundraising ? "Included" : "Excluded"}
+              />
+            </>
+          )}
           <ReviewRow label="MCR signatory" value={mcr?.signatoryName} />
           <ReviewRow label="MCR signatory date" value={mcr?.signatoryDate} />
           <ReviewRow label="MCR witness" value={mcr?.witnessName} />

@@ -208,7 +208,9 @@ function LocalAuthorityPicker() {
 
 export function Step2Counterparty() {
   const form = useFormContext<Intake>();
-  const isLA = form.watch("counterpartyType") === "LocalAuthority";
+  const counterpartyType = form.watch("counterpartyType");
+  const isLA = counterpartyType === "LocalAuthority";
+  const isCharity = counterpartyType === "CharityPartner";
   const willSign = form.watch("counterpartyWillSign") !== false;
 
   return (
@@ -220,7 +222,52 @@ export function Step2Counterparty() {
             <TextField key={f.name} field={f} />
           ))}
         </div>
+        {isCharity && (
+          <FormField
+            control={form.control}
+            name="counterparty.legalDescription"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>
+                  Legal status description
+                  <span className="text-destructive"> *</span>
+                </FormLabel>
+                <FormDescription>
+                  Free-text describing the charity&apos;s legal status — e.g.
+                  &ldquo;a company limited by guarantee registered in Scotland
+                  (company number SCxxxxxx) and a Scottish charity regulated
+                  by OSCR, charity number SCxxxxxx&rdquo;.
+                </FormDescription>
+                <FormControl>
+                  <Textarea rows={3} {...field} value={field.value ?? ""} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        )}
       </Section>
+
+      {isCharity && (
+        <Section
+          title="Background"
+          description="Optional partner-specific paragraph inserted into the recitals between the &ldquo;Counterparty Activities&rdquo; anchor and the standard &ldquo;MCR delivers…&rdquo; paragraph. Leave blank to omit the paragraph entirely."
+        >
+          <FormField
+            control={form.control}
+            name="counterparty.background"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Background paragraph</FormLabel>
+                <FormControl>
+                  <Textarea rows={5} {...field} value={field.value ?? ""} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </Section>
+      )}
 
       <Section
         title="Signatory"

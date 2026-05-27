@@ -50,6 +50,8 @@ function buildDefaultValues(): IntakeInput {
       escalationEmail: "",
       escalationPhone: "",
       coveredSchoolsSites: "",
+      legalDescription: "",
+      background: "",
     },
     mcr: {
       ...MCR_SIGNER_PRESET,

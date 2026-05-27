@@ -233,6 +233,7 @@ const englandSchoolCounterparty: Counterparty = {
 
 const englandSchoolIntake: Intake = {
   jurisdiction: "England",
+  useEnglishLegalSystem: true,
   counterpartyType: "AcademyOrFreeSchool",
   counterpartyWillSign: true,
   includeCriminalRecord: true,
@@ -357,7 +358,27 @@ describe("English legal system swap", () => {
     expect(text).not.toMatch(/Centre for Effective Dispute Resolution/);
   });
 
-  it("England academy: swaps to law of England and Wales + CEDR appointment", () => {
+  it("England academy with Scots-law default: keeps Scots-law clauses on an English-geography DSA", () => {
+    // Majority case for English partnerships — geographic content is
+    // English (FOIA, Year 7/8) but the legal system stays Scots.
+    const intake: Intake = {
+      ...englandSchoolIntake,
+      useEnglishLegalSystem: false,
+    };
+    const text = renderText(intake);
+    // Geography stays English.
+    expect(text).toMatch(/FOIA/);
+    expect(text).toMatch(/Year 7 and Year 8/);
+    expect(text).not.toMatch(/FOISA/);
+    // Legal system stays Scots.
+    expect(text).toMatch(/governed by and construed in accordance with the law of Scotland/);
+    expect(text).toMatch(/Scottish Courts shall have exclusive jurisdiction/);
+    expect(text).toMatch(/Dean of the Royal Faculty of Procurators in Glasgow/);
+    expect(text).not.toMatch(/Courts of England and Wales/);
+    expect(text).not.toMatch(/Centre for Effective Dispute Resolution/);
+  });
+
+  it("England academy with English-law opt-in: swaps to law of England and Wales + CEDR appointment", () => {
     const text = renderText(englandSchoolIntake);
     expect(text).toMatch(
       /governed by and construed in accordance with the law of England and Wales/,
@@ -387,10 +408,28 @@ describe("English legal system swap", () => {
     expect(charityText).not.toMatch(/Centre for Effective Dispute Resolution/);
   });
 
-  it("England charity: swaps to Gillick competence + CEDR + Courts of England and Wales", () => {
+  it("England charity with Scots-law default: keeps Age of Legal Capacity test", () => {
+    // Majority case for English-charity partnerships.
     const intake = {
       ...loadIntake("sample-charity-centrestage.json"),
       jurisdiction: "England" as const,
+      // useEnglishLegalSystem omitted — defaults to false.
+    };
+    const charityText = extractDocxText(
+      renderToBuffer(CHARITY_TEMPLATE, buildContext(intake)),
+    );
+    expect(charityText).toMatch(/section 2\(4\) or 2\(4A\) of the Age of Legal Capacity \(Scotland\) Act 1991/);
+    expect(charityText).toMatch(/governed by and construed in accordance with the law of Scotland/);
+    expect(charityText).toMatch(/Dean of the Royal Faculty of Procurators in Glasgow/);
+    expect(charityText).not.toMatch(/Gillick competence/);
+    expect(charityText).not.toMatch(/Centre for Effective Dispute Resolution/);
+  });
+
+  it("England charity with English-law opt-in: swaps to Gillick + CEDR + Courts of England and Wales", () => {
+    const intake = {
+      ...loadIntake("sample-charity-centrestage.json"),
+      jurisdiction: "England" as const,
+      useEnglishLegalSystem: true,
     };
     const charityText = extractDocxText(
       renderToBuffer(CHARITY_TEMPLATE, buildContext(intake)),

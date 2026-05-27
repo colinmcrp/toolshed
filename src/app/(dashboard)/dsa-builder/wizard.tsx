@@ -24,6 +24,7 @@ function buildDefaultValues(): IntakeInput {
   const today = todayIso();
   return {
     jurisdiction: "Scotland",
+    useEnglishLegalSystem: false,
     counterpartyType: "LocalAuthority",
     counterpartyWillSign: true,
     includeCriminalRecord: true,
@@ -62,7 +63,7 @@ function buildDefaultValues(): IntakeInput {
 }
 
 const STEP_FIELDS: Record<number, Path<IntakeInput>[]> = {
-  0: ["jurisdiction", "counterpartyType"],
+  0: ["jurisdiction", "useEnglishLegalSystem", "counterpartyType"],
   1: ["counterparty", "counterpartyWillSign"],
   2: ["includeCriminalRecord", "includeGroupwork", "includeFundraising"],
   3: ["mcr"],

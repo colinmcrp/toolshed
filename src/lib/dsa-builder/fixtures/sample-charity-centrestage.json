@@ -2,6 +2,7 @@
   "_comment": "Example intake for a charity-to-charity DSA. Mirrors the Centrestage Communities Ltd partnership (Kilmarnock-based Scottish charity hosting the MCR Mentoring Programme).",
 
   "jurisdiction": "Scotland",
+  "useEnglishLegalSystem": false,
   "counterpartyType": "CharityPartner",
 
   "includeCriminalRecord": true,

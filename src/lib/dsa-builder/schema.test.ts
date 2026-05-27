@@ -125,6 +125,47 @@ describe("IntakeSchema", () => {
     expect(result.success).toBe(false);
   });
 
+  it("defaults useEnglishLegalSystem to false for both jurisdictions", () => {
+    for (const jurisdiction of ["Scotland", "England"] as const) {
+      const result = IntakeSchema.safeParse({
+        jurisdiction,
+        counterpartyType:
+          jurisdiction === "Scotland" ? "LocalAuthority" : "AcademyOrFreeSchool",
+        counterparty: { ...baseCounterparty, coveredSchoolsSites: "All schools" },
+      });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.useEnglishLegalSystem).toBe(false);
+      }
+    }
+  });
+
+  it("accepts England + useEnglishLegalSystem true (opt-in path)", () => {
+    const result = IntakeSchema.safeParse({
+      jurisdiction: "England",
+      useEnglishLegalSystem: true,
+      counterpartyType: "AcademyOrFreeSchool",
+      counterparty: { ...baseCounterparty, coveredSchoolsSites: "All schools" },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects Scotland + useEnglishLegalSystem true (legally incoherent)", () => {
+    const result = IntakeSchema.safeParse({
+      jurisdiction: "Scotland",
+      useEnglishLegalSystem: true,
+      counterpartyType: "LocalAuthority",
+      counterparty: { ...baseCounterparty, coveredSchoolsSites: "All schools" },
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      const issue = result.error.issues.find((i) =>
+        i.path.join(".") === "useEnglishLegalSystem",
+      );
+      expect(issue?.message).toMatch(/not available for Scotland/);
+    }
+  });
+
   it("ignores invalid contact emails when counterpartyWillSign is false", () => {
     // The contacts UI is hidden in this case, so a stale invalid value in
     // form state must not silently block the form.

@@ -137,6 +137,14 @@ export function Step4McrReview() {
         </div>
         <dl className="rounded-lg border border-border p-4">
           <ReviewRow label="Jurisdiction" value={snapshot.jurisdiction} />
+          <ReviewRow
+            label="Governing law"
+            value={
+              snapshot.useEnglishLegalSystem
+                ? "English legal system (England & Wales)"
+                : "Scots law"
+            }
+          />
           <ReviewRow label="Counterparty type" value={snapshot.counterpartyType} />
           <ReviewRow label="Counterparty legal name" value={snapshot.counterparty.legalName} />
           <ReviewRow label="Counterparty short name" value={snapshot.counterparty.shortName} />

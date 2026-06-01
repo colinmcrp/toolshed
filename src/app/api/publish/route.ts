@@ -67,8 +67,9 @@ function tokenMatches(provided: string, expected: string): boolean {
 /** Decode base64, validating the format first. Returns null on malformed input. */
 function decodeBase64(value: string): Buffer | null {
   const trimmed = value.replace(/\s+/g, "");
-  // Accept unpadded base64 too (Node decodes it); only length % 4 === 1 is impossible.
-  if (!BASE64_RE.test(trimmed) || trimmed.length % 4 === 1) return null;
+  if (!BASE64_RE.test(trimmed)) return null;
+  // Padded base64 must be a multiple of 4; unpadded can be 4n / 4n+2 / 4n+3 (never 4n+1).
+  if (trimmed.endsWith("=") ? trimmed.length % 4 !== 0 : trimmed.length % 4 === 1) return null;
   return Buffer.from(trimmed, "base64");
 }
 
@@ -219,17 +220,23 @@ export async function POST(req: Request) {
       if (i >= decoded.length) return;
       const file = decoded[i];
       const key = isBundle ? `${rowId}/${file.path}` : `${rowId}/index.html`;
-      const { error } = await supabase.storage
-        .from(BUCKET)
-        .upload(key, file.data, { contentType: file.contentType, upsert: true });
-      if (error) {
-        uploadFailures.push({ path: file.path, error });
+      try {
+        const { error } = await supabase.storage
+          .from(BUCKET)
+          .upload(key, file.data, { contentType: file.contentType, upsert: true });
+        if (error) {
+          uploadFailures.push({ path: file.path, error });
+          return;
+        }
+      } catch (err) {
+        // A thrown fetch/network error must not bypass cleanup — record and stop.
+        uploadFailures.push({ path: file.path, error: err });
         return;
       }
     }
   }
   await Promise.all(
-    Array.from({ length: Math.min(UPLOAD_CONCURRENCY, decoded.length) }, uploadWorker)
+    Array.from({ length: Math.min(UPLOAD_CONCURRENCY, decoded.length) }, () => uploadWorker())
   );
   if (uploadFailures.length > 0) {
     const f = uploadFailures[0];

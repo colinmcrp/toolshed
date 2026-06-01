@@ -74,7 +74,21 @@ export async function GET(
   const contentType = mime.lookup(filePath) || "application/octet-stream";
 
   // ── Response ────────────────────────────────────────────────────────────────
-  return new NextResponse(blob.stream(), {
+  // For bundle HTML pages, inject <base href="/<slug>/"> so relative asset/link
+  // paths resolve to the bundle root even when the entry is served at /<slug>
+  // (the trailing slash gets 308-stripped). Idempotent: skips pages that already
+  // declare a <base>. Single-file artifacts and non-HTML assets stream untouched.
+  let body: ReadableStream<Uint8Array> | string = blob.stream();
+  if (artifact.is_bundle && contentType.startsWith("text/html")) {
+    const html = await blob.text();
+    body = /<base\s/i.test(html)
+      ? html
+      : /<head[^>]*>/i.test(html)
+        ? html.replace(/<head[^>]*>/i, (m) => `${m}<base href="/${slug}/">`)
+        : `<base href="/${slug}/">${html}`;
+  }
+
+  return new NextResponse(body, {
     status: 200,
     headers: {
       "Content-Type": contentType,

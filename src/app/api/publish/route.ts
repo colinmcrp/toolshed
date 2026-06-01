@@ -67,7 +67,8 @@ function tokenMatches(provided: string, expected: string): boolean {
 /** Decode base64, validating the format first. Returns null on malformed input. */
 function decodeBase64(value: string): Buffer | null {
   const trimmed = value.replace(/\s+/g, "");
-  if (!BASE64_RE.test(trimmed) || trimmed.length % 4 !== 0) return null;
+  // Accept unpadded base64 too (Node decodes it); only length % 4 === 1 is impossible.
+  if (!BASE64_RE.test(trimmed) || trimmed.length % 4 === 1) return null;
   return Buffer.from(trimmed, "base64");
 }
 
@@ -205,17 +206,36 @@ export async function POST(req: Request) {
     return json({ ok: false, error: "Failed to create artifact record" }, 500);
   }
 
-  // ── Upload files ──────────────────────────────────────────────────────────────
-  for (const file of decoded) {
-    const key = isBundle ? `${row.id}/${file.path}` : `${row.id}/index.html`;
-    const { error } = await supabase.storage
-      .from(BUCKET)
-      .upload(key, file.data, { contentType: file.contentType, upsert: true });
-    if (error) {
-      console.error("[publish] upload failed:", file.path, error);
-      await removeArtifact(supabase, row.id);
-      return json({ ok: false, error: `Upload failed for ${file.path}` }, 500);
+  // ── Upload files (bounded concurrency, like uploadBundleEntries in actions.ts) ──
+  // Sequential uploads of up to MAX_FILES would risk the serverless execution
+  // timeout on large bundles; a small worker pool keeps it well within limits.
+  const rowId = row.id;
+  const UPLOAD_CONCURRENCY = 5;
+  const uploadFailures: { path: string; error: unknown }[] = [];
+  let nextIndex = 0;
+  async function uploadWorker() {
+    while (uploadFailures.length === 0) {
+      const i = nextIndex++;
+      if (i >= decoded.length) return;
+      const file = decoded[i];
+      const key = isBundle ? `${rowId}/${file.path}` : `${rowId}/index.html`;
+      const { error } = await supabase.storage
+        .from(BUCKET)
+        .upload(key, file.data, { contentType: file.contentType, upsert: true });
+      if (error) {
+        uploadFailures.push({ path: file.path, error });
+        return;
+      }
     }
+  }
+  await Promise.all(
+    Array.from({ length: Math.min(UPLOAD_CONCURRENCY, decoded.length) }, uploadWorker)
+  );
+  if (uploadFailures.length > 0) {
+    const f = uploadFailures[0];
+    console.error("[publish] upload failed:", f.path, f.error);
+    await removeArtifact(supabase, rowId);
+    return json({ ok: false, error: `Upload failed for ${f.path}` }, 500);
   }
 
   const path = isBundle ? `/${slug}/` : `/${slug}.html`;

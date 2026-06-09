@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { saveAs } from "file-saver";
+import { createClient } from "@/lib/supabase/client";
 import { IntakeSchema, type Intake } from "@/lib/dsa-builder/schema";
 import { todayIso } from "@/lib/dsa-builder/build-context";
 import { MCR_SIGNER_PRESET } from "@/lib/dsa-builder/defaults";
@@ -105,9 +106,47 @@ export function Wizard() {
   // opens the review step can update the button state on first arrival.
   const { isSubmitting, isValid } = form.formState;
 
+  const promptReLogin = () =>
+    toast.error(
+      "Your session has expired. Please sign in again — your answers are still here.",
+      {
+        action: {
+          label: "Sign in",
+          onClick: () => {
+            window.location.href = "/login";
+          },
+        },
+      },
+    );
+
   const onSubmit = form.handleSubmit(async (data) => {
     try {
-      const { filename, bytes } = await generateDsa(data);
+      // The wizard is a long-lived single page that fires no requests while
+      // it is being filled in, so the Supabase access token can lapse before
+      // the user reaches this button. Refresh it best-effort first: getUser()
+      // on the browser client renews the token (and rewrites the auth cookies
+      // the server action reads) when the refresh token is still valid. Never
+      // block on the result — dev mode mocks the user server-side with no
+      // browser session, and the action's own auth check is the source of
+      // truth either way.
+      try {
+        await createClient().auth.getUser();
+      } catch {
+        // Ignore — the server action reports an auth failure if it matters.
+      }
+
+      const result = await generateDsa(data);
+      if (!result.ok) {
+        if (result.code === "unauthenticated") {
+          promptReLogin();
+        } else {
+          toast.error(result.error);
+        }
+        // Leave the form untouched so nothing the user typed is lost.
+        return;
+      }
+
+      const { filename, bytes } = result;
       saveAs(
         new Blob([bytes as BlobPart], {
           type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",

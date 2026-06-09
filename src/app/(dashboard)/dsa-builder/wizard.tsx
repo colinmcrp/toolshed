@@ -113,7 +113,10 @@ export function Wizard() {
         action: {
           label: "Sign in",
           onClick: () => {
-            window.location.href = "/login";
+            // Open login in a new tab so this tab — and the form the user just
+            // filled in — survives. Auth cookies are shared across tabs, so the
+            // next Generate click in this tab picks up the refreshed session.
+            window.open("/login", "_blank");
           },
         },
       },
@@ -123,14 +126,14 @@ export function Wizard() {
     try {
       // The wizard is a long-lived single page that fires no requests while
       // it is being filled in, so the Supabase access token can lapse before
-      // the user reaches this button. Refresh it best-effort first: getUser()
-      // on the browser client renews the token (and rewrites the auth cookies
-      // the server action reads) when the refresh token is still valid. Never
-      // block on the result — dev mode mocks the user server-side with no
-      // browser session, and the action's own auth check is the source of
-      // truth either way.
+      // the user reaches this button. Refresh it best-effort first: getSession()
+      // resolves from the local cache when the token is still valid (no network
+      // round-trip) and refreshes it — rewriting the auth cookies the server
+      // action reads — only when it has expired. Never block on the result:
+      // dev mode mocks the user server-side with no browser session, and the
+      // action's own auth check is the source of truth either way.
       try {
-        await createClient().auth.getUser();
+        await createClient().auth.getSession();
       } catch {
         // Ignore — the server action reports an auth failure if it matters.
       }

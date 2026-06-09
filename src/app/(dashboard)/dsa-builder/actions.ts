@@ -16,10 +16,26 @@ export interface GeneratedDsa {
   bytes: Uint8Array;
 }
 
-export async function generateDsa(rawIntake: unknown): Promise<GeneratedDsa> {
+// Discriminated result rather than a bare GeneratedDsa: a thrown error in a
+// Server Action has its message redacted by Next.js in production (the opaque
+// "Server Components render" digest), so an expired session surfaced to the
+// user as an undiagnosable 500 that also discarded the form. Returning the
+// failure — as the sibling html-host actions already do — lets it survive to
+// the client, which can show a re-login prompt and keep the wizard intact.
+export type GenerateDsaResult =
+  | { ok: true; filename: string; bytes: Uint8Array }
+  | { ok: false; error: string; code: "unauthenticated" };
+
+export async function generateDsa(
+  rawIntake: unknown,
+): Promise<GenerateDsaResult> {
   const user = await getUser();
   if (!user) {
-    throw new Error("Not signed in");
+    return {
+      ok: false,
+      code: "unauthenticated",
+      error: "Your session has expired. Please sign in again and retry.",
+    };
   }
 
   const intake: Intake = IntakeSchema.parse(rawIntake);
@@ -51,6 +67,7 @@ export async function generateDsa(rawIntake: unknown): Promise<GeneratedDsa> {
   }
 
   return {
+    ok: true,
     filename: buildFilename(intake.counterparty.shortName),
     bytes,
   };

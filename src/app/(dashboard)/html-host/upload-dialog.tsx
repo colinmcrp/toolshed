@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Upload, X, Loader2, FileCode } from "lucide-react";
+import { Upload, X, Loader2, FileCode, Lock } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { createClient as createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { formatBytes } from "@/lib/html-host/format";
@@ -53,6 +54,9 @@ export function UploadDialog() {
   const [slug, setSlug] = React.useState("");
   const [slugStatus, setSlugStatus] = React.useState<SlugStatus>({ state: "idle" });
 
+  // Visibility state
+  const [isPrivate, setIsPrivate] = React.useState(false);
+
   // Submission state
   const [submitting, setSubmitting] = React.useState(false);
 
@@ -70,6 +74,7 @@ export function UploadDialog() {
     setIsDragging(false);
     setSlug("");
     setSlugStatus({ state: "idle" });
+    setIsPrivate(false);
     setSubmitting(false);
     checkIdRef.current = 0;
     if (debounceRef.current) {
@@ -215,6 +220,7 @@ export function UploadDialog() {
       kind,
       originalName: file.name,
       declaredSize: file.size,
+      isPrivate,
     });
 
     if (!prep.ok) {
@@ -418,6 +424,27 @@ export function UploadDialog() {
                 </p>
               )}
             </div>
+          </div>
+
+          {/* ── Visibility ── */}
+          <div className="flex items-center justify-between gap-3 rounded-md border px-3 py-2.5">
+            <div className="flex items-center gap-2">
+              <Lock className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <div>
+                <Label htmlFor="private-switch" className="text-sm">
+                  Private
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Viewers must sign in with an @mcrpathways.org account
+                </p>
+              </div>
+            </div>
+            <Switch
+              id="private-switch"
+              checked={isPrivate}
+              onCheckedChange={setIsPrivate}
+              disabled={submitting}
+            />
           </div>
 
           {/* ── Submit ── */}

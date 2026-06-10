@@ -129,6 +129,7 @@ export async function prepareArtifactUpload(input: {
   kind: ArtifactKind;
   originalName: string;
   declaredSize: number;
+  isPrivate?: boolean;
 }): Promise<
   | {
       ok: true;
@@ -204,6 +205,7 @@ export async function prepareArtifactUpload(input: {
       slug,
       owner_id: user.id,
       is_bundle: isBundle,
+      is_private: input.isPrivate ?? false,
       entry_path: "index.html",
       size_bytes: input.declaredSize,
       mime_type: isBundle ? "application/zip" : "text/html",
@@ -478,7 +480,48 @@ export async function listMyArtifacts(): Promise<HtmlArtifact[]> {
   return data ?? [];
 }
 
-// ─── Action 5: deleteArtifact ─────────────────────────────────────────────────
+// ─── Action 5: setArtifactPrivacy ─────────────────────────────────────────────
+//
+// The only mutation allowed on a published artifact (column-level grant: RLS
+// owners may update is_private and nothing else). Private artifacts are only
+// served to signed-in @mcrpathways.org viewers.
+
+export async function setArtifactPrivacy(
+  id: string,
+  isPrivate: boolean
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const user = await getUser();
+  if (!user) {
+    return { ok: false, error: "Not signed in" };
+  }
+
+  if (!UUID_REGEX.test(id)) {
+    return { ok: false, error: "Invalid artifact id" };
+  }
+
+  const supabase = await createClient();
+
+  const { data: updated, error } = await supabase
+    .from("html_artifacts")
+    .update({ is_private: isPrivate })
+    .eq("id", id)
+    .select("id")
+    .maybeSingle();
+
+  if (error) {
+    console.error("[setArtifactPrivacy] Update failed:", error);
+    return { ok: false, error: "Failed to update visibility" };
+  }
+  if (!updated) {
+    // RLS filtered the row: not found or not owned by this user.
+    return { ok: false, error: "Not found" };
+  }
+
+  revalidatePath("/html-host");
+  return { ok: true };
+}
+
+// ─── Action 6: deleteArtifact ─────────────────────────────────────────────────
 
 export async function deleteArtifact(
   id: string

@@ -1,11 +1,12 @@
 "use client";
 
+import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Copy, ExternalLink, Trash2 } from "lucide-react";
+import { Copy, ExternalLink, Lock, LockOpen, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { deleteArtifact } from "./actions";
+import { deleteArtifact, setArtifactPrivacy } from "./actions";
 import { formatBytes, formatRelative } from "@/lib/html-host/format";
 import type { HtmlArtifact } from "@/types/database";
 
@@ -15,6 +16,7 @@ interface ArtifactRowProps {
 
 export function ArtifactRow({ artifact }: ArtifactRowProps) {
   const router = useRouter();
+  const [togglingPrivacy, setTogglingPrivacy] = React.useState(false);
 
   const path = artifact.is_bundle
     ? `/${artifact.slug}/`
@@ -31,6 +33,23 @@ export function ArtifactRow({ artifact }: ArtifactRowProps) {
         toast.info(`Link: ${url}`);
       }
     );
+  }
+
+  async function handleTogglePrivacy() {
+    setTogglingPrivacy(true);
+    const makePrivate = !artifact.is_private;
+    const result = await setArtifactPrivacy(artifact.id, makePrivate);
+    setTogglingPrivacy(false);
+    if (result.ok) {
+      toast.success(
+        makePrivate
+          ? "Now private — viewers must sign in with @mcrpathways.org"
+          : "Now public — anyone with the link can view"
+      );
+      router.refresh();
+    } else {
+      toast.error(result.error ?? "Failed to update visibility");
+    }
   }
 
   async function handleDelete() {
@@ -65,6 +84,17 @@ export function ArtifactRow({ artifact }: ArtifactRowProps) {
         </p>
       </div>
 
+      {/* Privacy badge */}
+      {artifact.is_private && (
+        <Badge
+          variant="outline"
+          className="shrink-0 border-amber-400 text-amber-600 dark:text-amber-400"
+        >
+          <Lock className="h-3 w-3" />
+          private
+        </Badge>
+      )}
+
       {/* Type badge */}
       {artifact.is_bundle ? (
         <Badge
@@ -94,6 +124,23 @@ export function ArtifactRow({ artifact }: ArtifactRowProps) {
 
       {/* Action buttons */}
       <div className="flex shrink-0 items-center gap-1">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
+          title={artifact.is_private ? "Make public" : "Make private"}
+          onClick={handleTogglePrivacy}
+          disabled={togglingPrivacy}
+        >
+          {artifact.is_private ? (
+            <Lock className="h-3.5 w-3.5" />
+          ) : (
+            <LockOpen className="h-3.5 w-3.5" />
+          )}
+          <span className="sr-only">
+            {artifact.is_private ? "Make public" : "Make private"}
+          </span>
+        </Button>
         <Button
           variant="ghost"
           size="icon"

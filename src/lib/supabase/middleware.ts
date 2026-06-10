@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { RESERVED_SLUGS } from "@/lib/html-host/slug";
+import { isAllowedEmail } from "@/lib/auth";
 
 function isArtifactUrl(pathname: string): boolean {
   if (pathname === '/') return false;
@@ -51,6 +52,23 @@ export async function updateSession(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  // Domain backstop: a session with a non-allowed email is never usable.
+  // (The auth callback/confirm routes also reject these, but a session can
+  // exist before those checks run — e.g. exchangeCodeForSession sets cookies
+  // before the email is inspected.)
+  if (user && !isAllowedEmail(user.email ?? "")) {
+    await supabase.auth.signOut();
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+    url.search = "error=unauthorized_domain";
+    const redirect = NextResponse.redirect(url);
+    // Carry the signed-out cookie state onto the redirect response.
+    for (const cookie of supabaseResponse.cookies.getAll()) {
+      redirect.cookies.set(cookie);
+    }
+    return redirect;
+  }
 
   // Define public routes that don't require authentication
   const publicRoutes = ["/login", "/signup", "/auth/callback", "/auth/confirm"];

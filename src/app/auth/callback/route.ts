@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { isAllowedEmail } from "@/lib/auth";
+import { isAllowedEmail, isSafeNextPath } from "@/lib/auth";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const next = searchParams.get("next") ?? "/";
+  const nextParam = searchParams.get("next");
+  const next = isSafeNextPath(nextParam) ? nextParam : "/";
 
   if (code) {
     const supabase = await createClient();
@@ -21,6 +22,9 @@ export async function GET(request: Request) {
 
         if (!isAllowedEmail(email)) {
           console.error(`Unauthorized domain for email: ${email}`);
+          // exchangeCodeForSession already set session cookies — destroy the
+          // session, don't just redirect, or the user stays signed in.
+          await supabase.auth.signOut();
           return NextResponse.redirect(
             `${origin}/login?error=unauthorized_domain`
           );

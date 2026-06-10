@@ -376,6 +376,7 @@ export type Database = {
           slug: string;
           owner_id: string;
           is_bundle: boolean;
+          is_private: boolean;
           entry_path: string;
           size_bytes: number;
           mime_type: string;
@@ -387,6 +388,7 @@ export type Database = {
           slug: string;
           owner_id: string;
           is_bundle?: boolean;
+          is_private?: boolean;
           entry_path?: string;
           size_bytes: number;
           mime_type: string;
@@ -398,6 +400,7 @@ export type Database = {
           slug?: string;
           owner_id?: string;
           is_bundle?: boolean;
+          is_private?: boolean;
           entry_path?: string;
           size_bytes?: number;
           mime_type?: string;

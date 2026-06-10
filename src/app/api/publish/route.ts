@@ -16,7 +16,12 @@
  * Body (JSON):
  *   { "slug": "my-page",
  *     "files": { "index.html": "<base64>", "assets/app.css": "<base64>", ... },
- *     "overwrite": false }
+ *     "overwrite": false,
+ *     "private": false }
+ *
+ * - `private: true` restricts the published page to signed-in
+ *   @mcrpathways.org viewers. On overwrite, omitting `private` preserves the
+ *   replaced artifact's setting.
  *
  * - A lone `index.html` is published as a single file → served at /<slug>.html
  * - Any other shape is a bundle → served at /<slug>/  (assets at /<slug>/<path>)
@@ -38,6 +43,7 @@ import mime from "mime-types";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServiceClient } from "@/lib/supabase/service";
 import { validateSlug } from "@/lib/html-host/slug";
+import { resolveArtifactPrivacy } from "@/lib/html-host/private-gate";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -51,6 +57,7 @@ const BodySchema = z.object({
   slug: z.string(),
   files: z.record(z.string(), z.string()), // relative path → base64 contents
   overwrite: z.boolean().optional(),
+  private: z.boolean().optional(),
 });
 
 function json(body: unknown, status: number) {
@@ -132,9 +139,9 @@ export async function POST(req: Request) {
   }
   const parsed = BodySchema.safeParse(raw);
   if (!parsed.success) {
-    return json({ ok: false, error: "Body must be { slug, files: { path: base64 }, overwrite? }" }, 400);
+    return json({ ok: false, error: "Body must be { slug, files: { path: base64 }, overwrite?, private? }" }, 400);
   }
-  const { slug, files, overwrite } = parsed.data;
+  const { slug, files, overwrite, private: requestedPrivate } = parsed.data;
 
   const slugCheck = validateSlug(slug);
   if (!slugCheck.ok) {
@@ -166,7 +173,7 @@ export async function POST(req: Request) {
   // ── Slug collision / overwrite (owner-scoped: never touch another owner's slug) ──
   const { data: existing } = await supabase
     .from("html_artifacts")
-    .select("id, owner_id")
+    .select("id, owner_id, is_private")
     .eq("slug", slug)
     .maybeSingle();
   if (existing) {
@@ -185,12 +192,14 @@ export async function POST(req: Request) {
   }
 
   // ── Create row ──────────────────────────────────────────────────────────────
+  const isPrivate = resolveArtifactPrivacy(requestedPrivate, overwrite ? existing : null);
   const { data: row, error: insertError } = await supabase
     .from("html_artifacts")
     .insert({
       slug,
       owner_id: ownerId,
       is_bundle: isBundle,
+      is_private: isPrivate,
       entry_path: "index.html",
       size_bytes: totalBytes,
       mime_type: "text/html",
@@ -249,5 +258,5 @@ export async function POST(req: Request) {
   const proto = req.headers.get("x-forwarded-proto") || "https";
   const host = req.headers.get("host");
   const origin = host ? `${proto}://${host}` : new URL(req.url).origin;
-  return json({ ok: true, slug, isBundle, files: paths.length, url: path, fullUrl: `${origin}${path}` }, 200);
+  return json({ ok: true, slug, isBundle, private: isPrivate, files: paths.length, url: path, fullUrl: `${origin}${path}` }, 200);
 }

@@ -1,13 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { ArrowRight, CheckCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { isSafeNextPath } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -32,11 +34,30 @@ const loginSchema = z.object({
 
 type LoginForm = z.infer<typeof loginSchema>;
 
-export default function LoginPage() {
+const URL_ERROR_MESSAGES: Record<string, string> = {
+  unauthorized_domain:
+    "Only @mcrpathways.org accounts can sign in. You have been signed out.",
+  auth_callback_error: "Sign-in failed. Please try again.",
+  auth_confirm_error: "That sign-in link is invalid or has expired. Please try again.",
+};
+
+function LoginPageContent() {
+  const searchParams = useSearchParams();
+  // Bounce target after sign-in (e.g. a private published page). Only honour
+  // same-origin relative paths — anything else would be an open redirect.
+  const nextParam = searchParams.get("next");
+  const next = isSafeNextPath(nextParam) ? nextParam : null;
+  const urlError = searchParams.get("error");
+
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(
+    urlError ? URL_ERROR_MESSAGES[urlError] ?? "Sign-in failed. Please try again." : null
+  );
+
+  const callbackUrl = (origin: string) =>
+    `${origin}/auth/callback${next ? `?next=${encodeURIComponent(next)}` : ""}`;
 
   async function handleGoogleSignIn() {
     setIsGoogleLoading(true);
@@ -47,7 +68,7 @@ export default function LoginPage() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: callbackUrl(window.location.origin),
         queryParams: {
           hd: "mcrpathways.org",
         },
@@ -101,7 +122,7 @@ export default function LoginPage() {
     const { error } = await supabase.auth.signInWithOtp({
       email: data.email,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: callbackUrl(window.location.origin),
       },
     });
 
@@ -164,7 +185,9 @@ export default function LoginPage() {
           </div>
           <CardTitle className="text-2xl">Welcome to MCR Pathways</CardTitle>
           <CardDescription>
-            Sign in with your MCR Pathways email
+            {next
+              ? "Sign in with your MCR Pathways email to view this page"
+              : "Sign in with your MCR Pathways email"}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -259,5 +282,14 @@ export default function LoginPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  // useSearchParams requires a Suspense boundary during prerendering.
+  return (
+    <Suspense fallback={null}>
+      <LoginPageContent />
+    </Suspense>
   );
 }

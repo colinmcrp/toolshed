@@ -8,6 +8,12 @@ export async function GET(request: Request) {
   const nextParam = searchParams.get("next");
   const next = isSafeNextPath(nextParam) ? nextParam : "/";
 
+  // Behind Vercel's proxy `origin` can be the internal deployment host;
+  // x-forwarded-host carries the public-facing domain the user is actually on.
+  const forwardedHost = request.headers.get("x-forwarded-host");
+  const isLocalEnv = process.env.NODE_ENV === "development";
+  const baseUrl = !isLocalEnv && forwardedHost ? `https://${forwardedHost}` : origin;
+
   if (code) {
     const supabase = await createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
@@ -26,7 +32,7 @@ export async function GET(request: Request) {
           // session, don't just redirect, or the user stays signed in.
           await supabase.auth.signOut();
           return NextResponse.redirect(
-            `${origin}/login?error=unauthorized_domain`
+            `${baseUrl}/login?error=unauthorized_domain`
           );
         }
 
@@ -55,19 +61,10 @@ export async function GET(request: Request) {
         }
       }
 
-      const forwardedHost = request.headers.get("x-forwarded-host");
-      const isLocalEnv = process.env.NODE_ENV === "development";
-
-      if (isLocalEnv) {
-        return NextResponse.redirect(`${origin}${next}`);
-      } else if (forwardedHost) {
-        return NextResponse.redirect(`https://${forwardedHost}${next}`);
-      } else {
-        return NextResponse.redirect(`${origin}${next}`);
-      }
+      return NextResponse.redirect(`${baseUrl}${next}`);
     }
   }
 
   // Return to login page with error
-  return NextResponse.redirect(`${origin}/login?error=auth_callback_error`);
+  return NextResponse.redirect(`${baseUrl}/login?error=auth_callback_error`);
 }

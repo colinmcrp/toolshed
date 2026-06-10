@@ -56,9 +56,19 @@ export async function updateSession(request: NextRequest) {
   // Domain backstop: a session with a non-allowed email is never usable.
   // (The auth callback/confirm routes also reject these, but a session can
   // exist before those checks run — e.g. exchangeCodeForSession sets cookies
-  // before the email is inspected.)
-  if (user && !isAllowedEmail(user.email ?? "")) {
-    await supabase.auth.signOut();
+  // before the email is inspected.) API routes are exempt: they don't
+  // authenticate via session cookies, and a 307-to-login is the wrong shape
+  // for an API response.
+  if (
+    user &&
+    !isAllowedEmail(user.email ?? "") &&
+    !request.nextUrl.pathname.startsWith("/api/")
+  ) {
+    try {
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.error("[middleware] signOut failed for disallowed session:", err);
+    }
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.search = "error=unauthorized_domain";
@@ -66,6 +76,14 @@ export async function updateSession(request: NextRequest) {
     // Carry the signed-out cookie state onto the redirect response.
     for (const cookie of supabaseResponse.cookies.getAll()) {
       redirect.cookies.set(cookie);
+    }
+    // Belt and braces: expire the Supabase auth cookies directly so that even
+    // a failed signOut (auth server unreachable) cannot leave this redirect
+    // looping with a still-live session cookie.
+    for (const { name } of request.cookies.getAll()) {
+      if (name.startsWith("sb-")) {
+        redirect.cookies.set(name, "", { maxAge: 0, path: "/" });
+      }
     }
     return redirect;
   }
